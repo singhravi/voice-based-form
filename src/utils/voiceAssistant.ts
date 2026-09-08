@@ -370,7 +370,7 @@ export const FIELD_VOICE_CONFIGS: Record<string, FieldVoiceConfig> = {
 };
 
 export const HINDI_ENGLISH_NUMBERS_MAP: Record<string, string> = {
-  // Single digits 0-9
+  // Single digits 0-9 (English & Devanagari)
   'zero': '0', 'oh': '0', 'zeroes': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
   'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
   'जीरो': '0', 'शून्य': '0', 'सिफर': '0',
@@ -384,58 +384,74 @@ export const HINDI_ENGLISH_NUMBERS_MAP: Record<string, string> = {
   'आठ': '8', 'एट': '8',
   'नौ': '9', 'नाइन': '9', 'नो': '9',
 
-  // 10-19
-  'ten': '10', 'टेन': '10', 'दस': '10',
-  'eleven': '11', 'इलेवन': '11', 'ग्यारह': '11',
-  'twelve': '12', 'ट्वेल्व': '12', 'बारह': '12',
-  'thirteen': '13', 'तेरह': '13',
-  'fourteen': '14', 'चौदह': '14',
-  'fifteen': '15', 'पंद्रह': '15', 'पन्द्रह': '15',
-  'sixteen': '16', 'सोलह': '16',
-  'seventeen': '17', 'सत्रह': '17',
-  'eighteen': '18', 'अठारह': '18',
-  'nineteen': '19', 'उन्नीस': '19',
+  // Single digits 0-9 (Romanized Hindi / Hinglish)
+  'shunya': '0', 'shunyaa': '0', 'sifar': '0', 'ziro': '0',
+  'ek': '1', 'ik': '1', 'yak': '1', 'van': '1',
+  'do': '2', 'du': '2', 'dho': '2', 'too': '2', 'tu': '2',
+  'teen': '3', 'tin': '3', 'thri': '3',
+  'char': '4', 'chaar': '4', 'for': '4',
+  'panch': '5', 'paanch': '5', 'faiv': '5',
+  'chhe': '6', 'che': '6', 'chhah': '6', 'cha': '6', 'siks': '6',
+  'saat': '7', 'sat': '7', 'sevn': '7',
+  'aath': '8', 'ath': '8', 'aat': '8', 'ayt': '8',
+  'nau': '9', 'no': '9', 'naw': '9', 'nain': '9',
+
+  // 10-19 (English, Devanagari, Hinglish)
+  'ten': '10', 'टेन': '10', 'दस': '10', 'das': '10', 'dass': '10',
+  'eleven': '11', 'इलेवन': '11', 'ग्यारह': '11', 'gyarah': '11', 'gyara': '11',
+  'twelve': '12', 'ट्वेल्व': '12', 'बारह': '12', 'barah': '12', 'bara': '12',
+  'thirteen': '13', 'तेरह': '13', 'terah': '13', 'tera': '13',
+  'fourteen': '14', 'चौदह': '14', 'chaudah': '14', 'chauda': '14',
+  'fifteen': '15', 'पंद्रह': '15', 'पन्द्रह': '15', 'pandrah': '15', 'pandra': '15',
+  'sixteen': '16', 'सोलह': '16', 'solah': '16', 'sola': '16',
+  'seventeen': '17', 'सत्रह': '17', 'satrah': '17', 'satra': '17',
+  'eighteen': '18', 'अठारह': '18', 'atharah': '18', 'athara': '18',
+  'nineteen': '19', 'उन्नीस': '19', 'unnees': '19', 'unnis': '19',
 
   // 20-29
-  'twenty': '20', 'ट्वेंटी': '20', 'बीस': '20',
-  'इक्कीस': '21', 'बाईस': '22', 'तेईस': '23', 'चौबीस': '24', 'पच्चीस': '25',
-  'छब्बीस': '26', 'सत्ताईस': '27', 'अट्ठाईस': '28', 'उनतीस': '29',
+  'twenty': '20', 'ट्वेंटी': '20', 'बीस': '20', 'bees': '20', 'bis': '20',
+  'इक्कीस': '21', 'ikkees': '21', 'बाईस': '22', 'baees': '22', 'तेईस': '23', 'teyees': '23',
+  'चौबीस': '24', 'chaubees': '24', 'पच्चीस': '25', 'pachis': '25', 'pachchees': '25',
+  'छब्बीस': '26', 'chhabis': '26', 'सत्ताईस': '27', 'sattais': '27', 'अट्ठाईस': '28', 'atthais': '28',
+  'उनतीस': '29', 'untis': '29',
 
   // 30-39
-  'thirty': '30', 'थर्टी': '30', 'तीस': '30',
+  'thirty': '30', 'थर्टी': '30', 'तीस': '30', 'tees': '30', 'tis': '30',
   'इकतीस': '31', 'बत्तीस': '32', 'तैंतीस': '33', 'चौंतीस': '34', 'पैंतीस': '35',
   'छत्तीस': '36', 'सैंतीस': '37', 'अड़तीस': '38', 'उनतालीस': '39',
 
   // 40-49
-  'forty': '40', 'फॉर्टी': '40', 'चालीस': '40',
+  'forty': '40', 'फॉर्टी': '40', 'चालीस': '40', 'chalis': '40', 'chalees': '40',
   'इकतालीस': '41', 'बयालीस': '42', 'तैंतालीस': '43', 'चवालीस': '44', 'पैंतालीस': '45',
   'छियालीस': '46', 'सैंतालीस': '47', 'अड़तालीस': '48', 'उनचास': '49',
 
   // 50-59
-  'fifty': '50', 'फिफ्टी': '50', 'पचास': '50',
+  'fifty': '50', 'फिफ्टी': '50', 'पचास': '50', 'pachas': '50',
   'इक्यावन': '51', 'बावन': '52', 'तिरेपन': '53', 'चौवन': '54', 'पचपन': '55',
   'छप्पन': '56', 'सत्तावन': '57', 'अट्ठावन': '58', 'उनसठ': '59',
 
   // 60-69
-  'sixty': '60', 'सिक्सटी': '60', 'साठ': '60',
+  'sixty': '60', 'सिक्सटी': '60', 'साठ': '60', 'saath': '60', 'sath': '60',
   'इकसठ': '61', 'बासठ': '62', 'तिरसठ': '63', 'चौंसठ': '64', 'पैंसठ': '65',
   'छियासठ': '66', 'सरसठ': '67', 'अड़सठ': '68', 'उनहत्तर': '69',
 
   // 70-79
-  'seventy': '70', 'सेवेन्टी': '70', 'सत्तर': '70',
+  'seventy': '70', 'सेवेन्टी': '70', 'सत्तर': '70', 'sattar': '70',
   'इकहत्तर': '71', 'बहत्तर': '72', 'तिहत्तर': '73', 'चौहत्तर': '74', 'पचहत्तर': '75',
   'छिहत्तर': '76', 'सतहत्तर': '77', 'अठहत्तर': '78', 'उनासी': '79', 'उन्नासी': '79',
 
   // 80-89
-  'eighty': '80', 'एटी': '80', 'अस्सी': '80',
+  'eighty': '80', 'एटी': '80', 'अस्सी': '80', 'assee': '80', 'assi': '80',
   'इक्यासी': '81', 'बयासी': '82', 'तिरासी': '83', 'चौरासी': '84', 'पचासी': '85',
   'छियासी': '86', 'सतासी': '87', 'अट्ठासी': '88', 'नवासी': '89',
 
   // 90-99
-  'ninety': '90', 'नाइन्टी': '90', 'नब्बे': '90',
-  'इक्यानवे': '91', 'बानवे': '92', 'तिरानवे': '93', 'चौरानवे': '94', 'पचानवे': '95', 'पंचानवे': '95', 'पिचानवे': '95',
-  'छियानवे': '96', 'सत्तानवे': '97', 'अट्ठानवे': '98', 'निन्यानवे': '99', 'निन्यानबे': '99',
-  'hundred': '100', 'हंड्रेड': '100', 'सौ': '100'
+  'ninety': '90', 'नाइन्टी': '90', 'नब्बे': '90', 'nabbe': '90', 'nabbey': '90',
+  'इक्यानवे': '91', 'ikyanve': '91', 'बानवे': '92', 'baanve': '92', 'तिरानवे': '93', 'tiranve': '93',
+  'चौरानवे': '94', 'chauranve': '94', 'पचानवे': '95', 'पंचानवे': '95', 'पिचानवे': '95', 'pachanve': '95',
+  'छियानवे': '96', 'chhiyanve': '96', 'सत्तानवे': '97', 'sattanve': '97', 'अट्ठानवे': '98', 'attanve': '98', 'nabbanve': '98',
+  'निन्यानवे': '99', 'निन्यानबे': '99', 'ninyanve': '99',
+  'hundred': '100', 'हंड्रेड': '100', 'सौ': '100', 'sau': '100'
 };
 
 const DIGIT_WORDS_MAP = HINDI_ENGLISH_NUMBERS_MAP;
@@ -629,6 +645,7 @@ export class VoiceAssistant {
       let hasProcessed = false;
       let accumulatedAlternatives: string[] = [];
       let latestInterim = '';
+      let fullAccumulatedTranscript = '';
       let silenceTimer: any = null;
 
       const isDigitField = fieldKey === 'mobileNumber' || fieldKey === 'aadhaarNumber' || fieldKey === 'pinCode';
@@ -689,11 +706,14 @@ export class VoiceAssistant {
         if (silenceTimer) clearTimeout(silenceTimer);
         if (isDigitField) {
           silenceTimer = setTimeout(() => {
-            if (!hasProcessed && (accumulatedAlternatives.length > 0 || latestInterim)) {
-              try {
-                recognizer.stop();
-              } catch (e) {}
-              processAndSubmit(accumulatedAlternatives.length > 0 ? accumulatedAlternatives : [latestInterim]);
+            if (!hasProcessed) {
+              const cleanDigits = this.parseSpokenNumbers(fullAccumulatedTranscript || latestInterim);
+              if (cleanDigits.length > 0) {
+                const val = cleanDigits.length >= expectedDigitCount! ? cleanDigits.slice(-expectedDigitCount!) : cleanDigits;
+                processAndSubmit([val, fullAccumulatedTranscript]);
+              } else if (accumulatedAlternatives.length > 0 || latestInterim) {
+                processAndSubmit(accumulatedAlternatives.length > 0 ? accumulatedAlternatives : [latestInterim]);
+              }
             }
           }, durationMs);
         }
@@ -710,13 +730,17 @@ export class VoiceAssistant {
         const alts: string[] = [];
         let finalPhrase = '';
         let interimPhrase = '';
+        let currentFull = '';
 
         for (let i = 0; i < e.results.length; i++) {
           const result = e.results[i];
+          const text = result[0].transcript.trim();
+          currentFull += (currentFull ? ' ' : '') + text;
+
           if (result.isFinal) {
-            finalPhrase += (finalPhrase ? ' ' : '') + result[0].transcript.trim();
+            finalPhrase += (finalPhrase ? ' ' : '') + text;
           } else {
-            interimPhrase += (interimPhrase ? ' ' : '') + result[0].transcript.trim();
+            interimPhrase += (interimPhrase ? ' ' : '') + text;
           }
 
           for (let j = 0; j < result.length; j++) {
@@ -727,13 +751,13 @@ export class VoiceAssistant {
           }
         }
 
-        accumulatedAlternatives = alts;
-        latestInterim = interimPhrase || finalPhrase;
+        fullAccumulatedTranscript = currentFull;
+        accumulatedAlternatives = [currentFull, finalPhrase, interimPhrase, ...alts].filter(Boolean);
+        latestInterim = interimPhrase || finalPhrase || currentFull;
 
-        // Special continuous accumulation for mobile number & numeric fields
+        // Continuous accumulation for mobile number & numeric fields
         if (expectedDigitCount) {
-          const allSpokenText = (finalPhrase + ' ' + interimPhrase).trim();
-          const cleanDigits = this.parseSpokenNumbers(allSpokenText);
+          const cleanDigits = this.parseSpokenNumbers(currentFull);
 
           if (cleanDigits.length > 0) {
             const remaining = expectedDigitCount - cleanDigits.length;
@@ -758,7 +782,7 @@ export class VoiceAssistant {
           }
 
           // Keep waiting for remaining digits
-          resetSilenceTimer(4500);
+          resetSilenceTimer(4000);
           return;
         }
 
@@ -782,8 +806,20 @@ export class VoiceAssistant {
 
       recognizer.onend = () => {
         if (silenceTimer) clearTimeout(silenceTimer);
-        if (!hasProcessed && (accumulatedAlternatives.length > 0 || latestInterim)) {
-          processAndSubmit(accumulatedAlternatives.length > 0 ? accumulatedAlternatives : [latestInterim]);
+        if (!hasProcessed) {
+          if (expectedDigitCount) {
+            const cleanDigits = this.parseSpokenNumbers(fullAccumulatedTranscript || latestInterim);
+            if (cleanDigits.length > 0) {
+              const val = cleanDigits.length >= expectedDigitCount ? cleanDigits.slice(-expectedDigitCount) : cleanDigits;
+              processAndSubmit([val, fullAccumulatedTranscript]);
+              return;
+            }
+          }
+          if (accumulatedAlternatives.length > 0 || latestInterim) {
+            processAndSubmit(accumulatedAlternatives.length > 0 ? accumulatedAlternatives : [latestInterim]);
+          } else {
+            options.onListeningState?.(false);
+          }
         } else {
           options.onListeningState?.(false);
         }
