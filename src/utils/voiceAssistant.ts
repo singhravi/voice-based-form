@@ -369,8 +369,9 @@ export const FIELD_VOICE_CONFIGS: Record<string, FieldVoiceConfig> = {
   }
 };
 
-const DIGIT_WORDS_MAP: Record<string, string> = {
-  'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
+export const HINDI_ENGLISH_NUMBERS_MAP: Record<string, string> = {
+  // Single digits 0-9
+  'zero': '0', 'oh': '0', 'zeroes': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
   'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
   'जीरो': '0', 'शून्य': '0', 'सिफर': '0',
   'एक': '1', 'वन': '1',
@@ -378,11 +379,66 @@ const DIGIT_WORDS_MAP: Record<string, string> = {
   'तीन': '3', 'थ्री': '3',
   'चार': '4', 'फोर': '4',
   'पांच': '5', 'पाँच': '5', 'फाइव': '5',
-  'छह': '6', 'छः': '6', 'सिक्स': '6',
+  'छह': '6', 'छः': '6', 'छे': '6', 'सिक्स': '6',
   'सात': '7', 'सेवन': '7',
   'आठ': '8', 'एट': '8',
-  'नौ': '9', 'नाइन': '9'
+  'नौ': '9', 'नाइन': '9', 'नो': '9',
+
+  // 10-19
+  'ten': '10', 'टेन': '10', 'दस': '10',
+  'eleven': '11', 'इलेवन': '11', 'ग्यारह': '11',
+  'twelve': '12', 'ट्वेल्व': '12', 'बारह': '12',
+  'thirteen': '13', 'तेरह': '13',
+  'fourteen': '14', 'चौदह': '14',
+  'fifteen': '15', 'पंद्रह': '15', 'पन्द्रह': '15',
+  'sixteen': '16', 'सोलह': '16',
+  'seventeen': '17', 'सत्रह': '17',
+  'eighteen': '18', 'अठारह': '18',
+  'nineteen': '19', 'उन्नीस': '19',
+
+  // 20-29
+  'twenty': '20', 'ट्वेंटी': '20', 'बीस': '20',
+  'इक्कीस': '21', 'बाईस': '22', 'तेईस': '23', 'चौबीस': '24', 'पच्चीस': '25',
+  'छब्बीस': '26', 'सत्ताईस': '27', 'अट्ठाईस': '28', 'उनतीस': '29',
+
+  // 30-39
+  'thirty': '30', 'थर्टी': '30', 'तीस': '30',
+  'इकतीस': '31', 'बत्तीस': '32', 'तैंतीस': '33', 'चौंतीस': '34', 'पैंतीस': '35',
+  'छत्तीस': '36', 'सैंतीस': '37', 'अड़तीस': '38', 'उनतालीस': '39',
+
+  // 40-49
+  'forty': '40', 'फॉर्टी': '40', 'चालीस': '40',
+  'इकतालीस': '41', 'बयालीस': '42', 'तैंतालीस': '43', 'चवालीस': '44', 'पैंतालीस': '45',
+  'छियालीस': '46', 'सैंतालीस': '47', 'अड़तालीस': '48', 'उनचास': '49',
+
+  // 50-59
+  'fifty': '50', 'फिफ्टी': '50', 'पचास': '50',
+  'इक्यावन': '51', 'बावन': '52', 'तिरेपन': '53', 'चौवन': '54', 'पचपन': '55',
+  'छप्पन': '56', 'सत्तावन': '57', 'अट्ठावन': '58', 'उनसठ': '59',
+
+  // 60-69
+  'sixty': '60', 'सिक्सटी': '60', 'साठ': '60',
+  'इकसठ': '61', 'बासठ': '62', 'तिरसठ': '63', 'चौंसठ': '64', 'पैंसठ': '65',
+  'छियासठ': '66', 'सरसठ': '67', 'अड़सठ': '68', 'उनहत्तर': '69',
+
+  // 70-79
+  'seventy': '70', 'सेवेन्टी': '70', 'सत्तर': '70',
+  'इकहत्तर': '71', 'बहत्तर': '72', 'तिहत्तर': '73', 'चौहत्तर': '74', 'पचहत्तर': '75',
+  'छिहत्तर': '76', 'सतहत्तर': '77', 'अठहत्तर': '78', 'उनासी': '79', 'उन्नासी': '79',
+
+  // 80-89
+  'eighty': '80', 'एटी': '80', 'अस्सी': '80',
+  'इक्यासी': '81', 'बयासी': '82', 'तिरासी': '83', 'चौरासी': '84', 'पचासी': '85',
+  'छियासी': '86', 'सतासी': '87', 'अट्ठासी': '88', 'नवासी': '89',
+
+  // 90-99
+  'ninety': '90', 'नाइन्टी': '90', 'नब्बे': '90',
+  'इक्यानवे': '91', 'बानवे': '92', 'तिरानवे': '93', 'चौरानवे': '94', 'पचानवे': '95', 'पंचानवे': '95', 'पिचानवे': '95',
+  'छियानवे': '96', 'सत्तानवे': '97', 'अट्ठानवे': '98', 'निन्यानवे': '99', 'निन्यानबे': '99',
+  'hundred': '100', 'हंड्रेड': '100', 'सौ': '100'
 };
+
+const DIGIT_WORDS_MAP = HINDI_ENGLISH_NUMBERS_MAP;
 
 export class VoiceAssistant {
   private recognition: SpeechRecognitionInstance | null = null;
@@ -573,10 +629,18 @@ export class VoiceAssistant {
       let hasProcessed = false;
       let accumulatedAlternatives: string[] = [];
       let latestInterim = '';
+      let silenceTimer: any = null;
+
+      const isDigitField = fieldKey === 'mobileNumber' || fieldKey === 'aadhaarNumber' || fieldKey === 'pinCode';
+      const expectedDigitCount =
+        fieldKey === 'mobileNumber' ? 10 :
+        fieldKey === 'aadhaarNumber' ? 12 :
+        fieldKey === 'pinCode' ? 6 :
+        null;
 
       const recognizer = new SpeechRecognitionClass();
       this.singleFieldRecognition = recognizer;
-      recognizer.continuous = false;
+      recognizer.continuous = isDigitField ? true : false;
       recognizer.interimResults = true;
       recognizer.maxAlternatives = 5;
       recognizer.lang = fieldKey === 'email' ? 'en-IN' : bcp47;
@@ -584,6 +648,7 @@ export class VoiceAssistant {
       const processAndSubmit = (candidates: string[]) => {
         if (hasProcessed) return;
         hasProcessed = true;
+        if (silenceTimer) clearTimeout(silenceTimer);
 
         const validCandidates = candidates.filter((c) => c && c.trim().length > 0);
         if (validCandidates.length === 0) {
@@ -620,8 +685,25 @@ export class VoiceAssistant {
         options.onListeningState?.(false);
       };
 
+      const resetSilenceTimer = (durationMs = 4500) => {
+        if (silenceTimer) clearTimeout(silenceTimer);
+        if (isDigitField) {
+          silenceTimer = setTimeout(() => {
+            if (!hasProcessed && (accumulatedAlternatives.length > 0 || latestInterim)) {
+              try {
+                recognizer.stop();
+              } catch (e) {}
+              processAndSubmit(accumulatedAlternatives.length > 0 ? accumulatedAlternatives : [latestInterim]);
+            }
+          }, durationMs);
+        }
+      };
+
       recognizer.onstart = () => {
         options.onListeningState?.(true);
+        if (isDigitField) {
+          resetSilenceTimer(6000);
+        }
       };
 
       recognizer.onresult = (e: SpeechRecognitionEvent) => {
@@ -647,6 +729,39 @@ export class VoiceAssistant {
 
         accumulatedAlternatives = alts;
         latestInterim = interimPhrase || finalPhrase;
+
+        // Special continuous accumulation for mobile number & numeric fields
+        if (expectedDigitCount) {
+          const allSpokenText = (finalPhrase + ' ' + interimPhrase).trim();
+          const cleanDigits = this.parseSpokenNumbers(allSpokenText);
+
+          if (cleanDigits.length > 0) {
+            const remaining = expectedDigitCount - cleanDigits.length;
+            const progressText = isHi
+              ? `📱 ${cleanDigits} (${cleanDigits.length}/${expectedDigitCount} अंक - ${remaining > 0 ? remaining + ' अंक और बोलें...' : 'पूर्ण!'})`
+              : `📱 ${cleanDigits} (${cleanDigits.length}/${expectedDigitCount} digits - ${remaining > 0 ? remaining + ' remaining...' : 'Complete!'})`;
+            options.onInterim?.(progressText);
+          } else {
+            options.onInterim?.(latestInterim);
+          }
+
+          // When target digits are reached (e.g. exactly 10 digits for mobile):
+          if (cleanDigits.length >= expectedDigitCount) {
+            const finalDigits = cleanDigits.slice(-expectedDigitCount);
+            if (silenceTimer) clearTimeout(silenceTimer);
+            hasProcessed = true;
+            try {
+              recognizer.stop();
+            } catch (err) {}
+            processAndSubmit([finalDigits]);
+            return;
+          }
+
+          // Keep waiting for remaining digits
+          resetSilenceTimer(4500);
+          return;
+        }
+
         options.onInterim?.(latestInterim);
 
         const lastResult = e.results[e.results.length - 1];
@@ -656,6 +771,7 @@ export class VoiceAssistant {
       };
 
       recognizer.onerror = (e: any) => {
+        if (silenceTimer) clearTimeout(silenceTimer);
         if (e.error === 'not-allowed' || e.error === 'permission-denied') {
           options.onError?.('माइक्रोफ़ोन की अनुमति नहीं मिली। कृपया ब्राउज़र सेटिंग्स में माइक्रोफ़ोन की अनुमति दें।');
         } else if (e.error !== 'no-speech') {
@@ -665,6 +781,7 @@ export class VoiceAssistant {
       };
 
       recognizer.onend = () => {
+        if (silenceTimer) clearTimeout(silenceTimer);
         if (!hasProcessed && (accumulatedAlternatives.length > 0 || latestInterim)) {
           processAndSubmit(accumulatedAlternatives.length > 0 ? accumulatedAlternatives : [latestInterim]);
         } else {
@@ -868,11 +985,43 @@ export class VoiceAssistant {
   }
 
   public parseSpokenNumbers(text: string): string {
-    const normalized = text.toLowerCase();
+    if (!text) return '';
+    let normalized = text.toLowerCase();
+
+    // 1. Convert Devanagari digits ०-९ to ASCII 0-9
+    normalized = normalized.replace(/[०-९]/g, (d) => String(d.charCodeAt(0) - 0x0966));
+
+    // 2. Handle multipliers like double/triple/दो बार/तीन बार
+    normalized = normalized.replace(/(?:double|डबल|दो बार)\s*([0-9a-zA-Z\u0900-\u097F]+)/gi, (_m, word) => {
+      const d = HINDI_ENGLISH_NUMBERS_MAP[word.toLowerCase()] || word;
+      return `${d} ${d}`;
+    });
+    normalized = normalized.replace(/(?:triple|ट्रिपल|तीन बार)\s*([0-9a-zA-Z\u0900-\u097F]+)/gi, (_m, word) => {
+      const d = HINDI_ENGLISH_NUMBERS_MAP[word.toLowerCase()] || word;
+      return `${d} ${d} ${d}`;
+    });
+
+    // 3. Handle English compound tens + units: "twenty five" -> "25", "ninety eight" -> "98"
+    const compoundTens: Record<string, number> = {
+      'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
+      'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90
+    };
+    const compoundUnits: Record<string, number> = {
+      'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9
+    };
+    for (const [tenWord, tenVal] of Object.entries(compoundTens)) {
+      for (const [unitWord, unitVal] of Object.entries(compoundUnits)) {
+        const pattern = new RegExp(`\\b${tenWord}\\s+${unitWord}\\b`, 'gi');
+        normalized = normalized.replace(pattern, String(tenVal + unitVal));
+      }
+    }
+
+    // 4. Tokenize & convert using HINDI_ENGLISH_NUMBERS_MAP
     const words = normalized.split(/\s+/);
     const convertedWords = words.map((w) => {
-      const cleanW = w.replace(/[.,]/g, '');
-      return DIGIT_WORDS_MAP[cleanW] !== undefined ? DIGIT_WORDS_MAP[cleanW] : cleanW;
+      const cleanW = w.replace(/[.,:;\-]/g, '');
+      return HINDI_ENGLISH_NUMBERS_MAP[cleanW] !== undefined ? HINDI_ENGLISH_NUMBERS_MAP[cleanW] : cleanW;
     });
 
     const joined = convertedWords.join(' ');
@@ -1323,26 +1472,27 @@ export class VoiceAssistant {
 
     // 5. Mobile Number Match
     const mobileMatch = transcript.match(
-      /(?:मोबाइल नंबर|फोन नंबर|mobile number|phone number|mobile|phone)[\s:]*([A-Za-z\u0900-\u097F0-9\s]{8,25})/i
+      /(?:मोबाइल नंबर|मोबाइल|फोन नंबर|फोन|दूरभाष|mobile number|phone number|mobile|phone)[\s:]*([A-Za-z\u0900-\u097F0-9\s]{4,40})/i
     );
+    let capturedMobile = '';
     if (mobileMatch) {
-      const cleanDigits = this.parseSpokenNumbers(mobileMatch[1]);
-      if (cleanDigits.length >= 10) {
-        fieldMatches.push({
-          fieldKey: 'mobileNumber',
-          value: cleanDigits.slice(-10),
-          displayLabel: 'मोबाइल नंबर'
-        });
+      const clean = this.parseSpokenNumbers(mobileMatch[1]);
+      if (clean.length >= 10) {
+        capturedMobile = clean.slice(-10);
       }
-    } else {
-      const standaloneDigits = this.parseSpokenNumbers(transcript);
-      if (standaloneDigits.length === 10) {
-        fieldMatches.push({
-          fieldKey: 'mobileNumber',
-          value: standaloneDigits,
-          displayLabel: 'मोबाइल नंबर'
-        });
+    }
+    if (!capturedMobile) {
+      const allSpokenDigits = this.parseSpokenNumbers(transcript);
+      if (allSpokenDigits.length === 10 || (allSpokenDigits.length === 12 && allSpokenDigits.startsWith('91'))) {
+        capturedMobile = allSpokenDigits.slice(-10);
       }
+    }
+    if (capturedMobile) {
+      fieldMatches.push({
+        fieldKey: 'mobileNumber',
+        value: capturedMobile,
+        displayLabel: 'मोबाइल नंबर'
+      });
     }
 
     // 6. Aadhaar Match
