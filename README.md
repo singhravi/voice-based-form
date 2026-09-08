@@ -76,8 +76,8 @@ An AI-driven, citizen-centric web application engineered to simplify and acceler
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/singhravi/voice-form-fillup.git
-   cd voice-form-fillup
+   git clone https://github.com/singhravi/voice-based-form.git
+   cd voice-based-form
    ```
 
 2. **Install dependencies:**
@@ -199,14 +199,39 @@ The built-in voice assistant recognizes voice commands in both **Hindi** and **E
 
 ## 🔒 Privacy & Security
 
-- **Zero Server Upload for Scans:** All document OCR analysis via Tesseract.js is executed inside your browser's WebAssembly sandbox.
-- **Client-Side Compression:** Images and PDFs are compressed in browser memory before any potential submission.
+- **Zero Server Upload for Scans:** All document OCR analysis via Tesseract.js is executed client-side inside your browser's WebAssembly sandbox.
+- **Client-Side Compression:** Images and PDFs are compressed in browser memory (<200KB documents / <50KB photos) before any potential submission.
+- **UIDAI Privacy Compliant Masking:** Aadhaar numbers are automatically masked (`XXXX XXXX 1234`) by default, with an interactive toggle for authorized user inspection.
 - **Safe Local Drafts:** Form data saved for crash recovery resides exclusively in your browser's local storage.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is open source and available under the terms of the **[MIT License](LICENSE)**.
 
-Copyright (c) 2026 **Ravi Shankar Singh**.
+```text
+MIT License
+
+Copyright (c) 2026 Ravi Shankar Singh
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+Copyright (c) 2026 **Ravi Shankar Singh**. All rights reserved.
