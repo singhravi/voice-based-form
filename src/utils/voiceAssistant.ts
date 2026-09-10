@@ -454,8 +454,6 @@ export const HINDI_ENGLISH_NUMBERS_MAP: Record<string, string> = {
   'hundred': '100', 'हंड्रेड': '100', 'सौ': '100', 'sau': '100'
 };
 
-const DIGIT_WORDS_MAP = HINDI_ENGLISH_NUMBERS_MAP;
-
 export class VoiceAssistant {
   private recognition: SpeechRecognitionInstance | null = null;
   private isListening: boolean = false;
@@ -603,6 +601,14 @@ export class VoiceAssistant {
     }
 
     this.speak(textToSpeak, lang);
+  }
+
+  public speakFeedback(text: string, lang: 'hi' | 'en' = 'hi', onEnd?: () => void) {
+    if (localStorage.getItem('uk_voice_feedback') === 'false') {
+      onEnd?.();
+      return;
+    }
+    this.speak(text, lang, onEnd);
   }
 
   /**
@@ -860,51 +866,30 @@ export class VoiceAssistant {
           const hasExactMatch = words.some(
             (w) => UK_FIRST_NAMES_DICTIONARY[w] || UK_SURNAME_DICTIONARY[w]
           );
-          if (hasExactMatch) {
-            return [alt, ...alternatives.filter((a) => a !== alt)];
-          }
+          if (hasExactMatch) return [alt, ...alternatives.filter((a) => a !== alt)];
         }
         return alternatives;
       }
 
       case 'district': {
         for (const alt of alternatives) {
-          for (const dist of UTTARAKHAND_DISTRICTS) {
-            if (
-              new RegExp(`\\b${dist.nameEn}\\b|${dist.nameHi}`, 'i').test(alt) ||
-              levenshtein(alt.toLowerCase(), dist.nameEn.toLowerCase()) <= 2
-            ) {
-              return [alt, ...alternatives.filter((a) => a !== alt)];
-            }
-          }
+          const clean = alt.toLowerCase().trim();
+          const match = UTTARAKHAND_DISTRICTS.some(
+            (d) => clean.includes(d.nameEn.toLowerCase()) || clean.includes(d.nameHi)
+          );
+          if (match) return [alt, ...alternatives.filter((a) => a !== alt)];
         }
         return alternatives;
       }
 
-      case 'mobileNumber': {
-        for (const alt of alternatives) {
-          const digits = this.parseSpokenNumbers(alt);
-          if (digits.length === 10) {
-            return [alt, ...alternatives.filter((a) => a !== alt)];
-          }
-        }
-        return alternatives;
-      }
-
-      case 'aadhaarNumber': {
-        for (const alt of alternatives) {
-          const digits = this.parseSpokenNumbers(alt);
-          if (digits.length === 12) {
-            return [alt, ...alternatives.filter((a) => a !== alt)];
-          }
-        }
-        return alternatives;
-      }
-
+      case 'mobileNumber':
+      case 'aadhaarNumber':
       case 'pinCode': {
+        // Prefer candidate that produces expected number of digits
+        const targetLen = fieldKey === 'mobileNumber' ? 10 : fieldKey === 'aadhaarNumber' ? 12 : 6;
         for (const alt of alternatives) {
           const digits = this.parseSpokenNumbers(alt);
-          if (digits.length === 6) {
+          if (digits.length === targetLen) {
             return [alt, ...alternatives.filter((a) => a !== alt)];
           }
         }
@@ -913,7 +898,17 @@ export class VoiceAssistant {
 
       case 'email': {
         for (const alt of alternatives) {
-          if (/@|gmail|yahoo|hotmail|outlook|rediffmail|\.com|\.in/i.test(alt)) {
+          if (alt.includes('@') || /at the rate|dot com/i.test(alt)) {
+            return [alt, ...alternatives.filter((a) => a !== alt)];
+          }
+        }
+        return alternatives;
+      }
+
+      case 'dob': {
+        for (const alt of alternatives) {
+          const parsed = this.parseSpokenDate(alt);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(parsed)) {
             return [alt, ...alternatives.filter((a) => a !== alt)];
           }
         }
@@ -925,144 +920,199 @@ export class VoiceAssistant {
     }
   }
 
-  public parseSpokenEmail(rawTranscript: string): string {
-    if (!rawTranscript) return '';
-    let text = rawTranscript.trim();
+  public parseSpokenDate(raw: string): string {
+    if (!raw) return '';
+    let text = raw.toLowerCase().trim();
 
-    // 1. Convert Devanagari digits to 0-9
-    for (const [hiWord, digit] of Object.entries(DIGIT_WORDS_MAP)) {
-      const reg = new RegExp(`\\b${hiWord}\\b`, 'gi');
-      text = text.replace(reg, digit);
-    }
+    // 1. Remove prefixes and extraneous fillers
+    text = text.replace(/^(?:मेरी जन्म तिथि|जन्म तिथि|जन्म तारीख|जन्म दिन|date of birth is|date of birth|my dob is|dob is|dob|born on|birth date)\s*[:=]?\s*/gi, '');
+    text = text.replace(/\s*(?:ko hua|ko hua tha|ko hua|hai|tha|ko|tarikh|tithi)$/gi, '').trim();
 
-    // 2. Hindi phrase normalization for email keywords
-    text = text
-      .replace(/(एट\s*द\s*रेट|ऐट\s*द\s*रेट|एट\s*रेट|ऐट\s*रेट|एट|ऐट)/gi, ' @ ')
-      .replace(/(डॉट|डोट|बिन्दु|बिंदु)/gi, ' . ')
-      .replace(/(जीमेल|जी\s*मेल)/gi, 'gmail')
-      .replace(/(याहू|याहू\s*मेल)/gi, 'yahoo')
-      .replace(/(हॉटमेल|हॉट\s*मेल)/gi, 'hotmail')
-      .replace(/(आउटलुक|आउट\s*लुक)/gi, 'outlook')
-      .replace(/(रेडिफमेल|रेडिफ)/gi, 'rediffmail')
-      .replace(/(कॉम|कम)/gi, 'com')
-      .replace(/(अंडरस्कोर|अंडर\s*स्कोर)/gi, ' _ ')
-      .replace(/(डैश|हाइफ़न)/gi, ' - ');
+    // 2. Convert Devanagari numerals ०-९ to ASCII 0-9
+    text = text.replace(/[०-९]/g, (d) => String(d.charCodeAt(0) - 0x0966));
 
-    // 3. If there are still Devanagari words, convert them using devanagariToEnglish
-    const words = text.split(/\s+/);
-    const latinWords = words.map((w) => {
-      if (/[\u0900-\u097F]/.test(w)) {
-        return devanagariToEnglish(w).toLowerCase();
-      }
-      return w;
+    // 3. Remove ordinal suffixes like 1st, 2nd, 3rd, 14th, 25th
+    text = text.replace(/\b(\d+)(?:st|nd|rd|th)\b/gi, '$1');
+
+    // 4. Handle Hindi spoken year phrases: "उन्नीस सौ छियानवे" -> 1996, "दो हजार पांच" -> 2005
+    text = text.replace(/(?:उन्नीस सौ|unnis sau|nineteen hundred)\s*([A-Za-z\u0900-\u097F0-9\s]+)/gi, (_m, rest) => {
+      const yrDigits = this.parseSpokenNumbers(rest);
+      if (yrDigits.length === 2) return ` 19${yrDigits} `;
+      if (yrDigits.length === 1) return ` 190${yrDigits} `;
+      return ` 19${yrDigits} `;
     });
-    text = latinWords.join(' ');
+    text = text.replace(/(?:दो हजार|do hajar|two thousand)\s*([A-Za-z\u0900-\u097F0-9\s]*)/gi, (_m, rest) => {
+      if (!rest || !rest.trim()) return ' 2000 ';
+      const yrDigits = this.parseSpokenNumbers(rest);
+      if (yrDigits.length === 2) return ` 20${yrDigits} `;
+      if (yrDigits.length === 1) return ` 200${yrDigits} `;
+      return ` 20${yrDigits} `;
+    });
 
-    // 4. English speech-to-text phrase normalization
-    text = text
-      .toLowerCase()
-      .replace(/\bat the rate of\b/g, ' @ ')
-      .replace(/\bat the rate\b/g, ' @ ')
-      .replace(/\bat rate\b/g, ' @ ')
-      .replace(/\b(dot|period|point)\b/g, '.')
-      .replace(/\b(underscore|under score)\b/g, '_')
-      .replace(/\b(dash|hyphen|minus)\b/g, '-')
-      .replace(/\bg\s*mail\b/g, 'gmail')
-      .replace(/\by\s*mail\b/g, 'yahoo')
-      .replace(/\bhot\s*mail\b/g, 'hotmail')
-      .replace(/\bout\s*look\b/g, 'outlook')
-      .replace(/\bsee\s*oh\s*em\b|\bc\s*o\s*m\b/g, 'com')
-      .replace(/\bi\s*n\b/g, 'in');
+    // 5. Replace Month Names with clean numeric token " [MONTH_MM] "
+    // January is strictly mapped to '01'
+    const MONTH_REPLACEMENTS: Array<{ regex: RegExp; code: string }> = [
+      { regex: /(?:जनवरी|january|janwari|janvri|\bjan\b|पहला\s*महीना)/gi, code: ' 01 ' },
+      { regex: /(?:फरवरी|february|febwari|farvari|\bfeb\b|दूसरा\s*महीना)/gi, code: ' 02 ' },
+      { regex: /(?:मार्च|march|\bmar\b|तीसरा\s*महीना)/gi, code: ' 03 ' },
+      { regex: /(?:अप्रैल|april|aprail|\bapr\b|चौथा\s*महीना)/gi, code: ' 04 ' },
+      { regex: /(?:मई|\bmay\b|पांचवा\s*महीना)/gi, code: ' 05 ' },
+      { regex: /(?:जून|\bjune\b|\bjun\b|छठा\s*महीना)/gi, code: ' 06 ' },
+      { regex: /(?:जुलाई|\bjuly\b|\bjul\b|सातवां\s*महीना)/gi, code: ' 07 ' },
+      { regex: /(?:अगस्त|august|agast|\baug\b|आठवां\s*महीना)/gi, code: ' 08 ' },
+      { regex: /(?:सितंबर|september|sitambar|\bsept\b|\bsep\b|नौवां\s*महीना)/gi, code: ' 09 ' },
+      { regex: /(?:अक्टूबर|october|aktubar|aktobar|\boct\b|दसवां\s*महीना)/gi, code: ' 10 ' },
+      { regex: /(?:नवंबर|november|navambar|\bnov\b|ग्यारहवां\s*महीना)/gi, code: ' 11 ' },
+      { regex: /(?:दिसंबर|december|disambar|\bdec\b|बारहवां\s*महीना)/gi, code: ' 12 ' }
+    ];
 
-    // 5. Replace spoken single digit words (zero, one, two, ...)
-    const enDigits: Record<string, string> = {
-      zero: '0', one: '1', two: '2', three: '3', four: '4',
-      five: '5', six: '6', seven: '7', eight: '8', nine: '9'
-    };
-    for (const [w, d] of Object.entries(enDigits)) {
-      text = text.replace(new RegExp(`\\b${w}\\b`, 'g'), d);
+    let monthDetected = '';
+    for (const item of MONTH_REPLACEMENTS) {
+      if (item.regex.test(text)) {
+        monthDetected = item.code.trim();
+        text = text.replace(item.regex, item.code);
+        break;
+      }
     }
 
-    // 6. Handle 'at' as '@' if preceding common domain or followed by email providers
-    text = text.replace(/\s+at\s+(gmail|yahoo|hotmail|outlook|rediffmail|gov|nic|icloud|protonmail)/gi, ' @ $1');
-    text = text.replace(/\s+at\s+/g, '@');
+    // 6. Split into number segments
+    // Replace separators (/ - . ,) with spaces
+    const cleanTokens = text.replace(/[\/\-\.,]/g, ' ').trim().split(/\s+/).filter(Boolean);
+    const parsedNums = cleanTokens.map((t) => this.parseSpokenNumbers(t)).filter(Boolean);
 
-    // 7. If no '@' is present but a domain like 'gmail.com' exists, insert '@'
-    if (!text.includes('@')) {
-      text = text.replace(/\s*(gmail|yahoo|hotmail|outlook|rediffmail|gov|nic|icloud|protonmail)[\s.]*(com|in|co\.in|org|net|edu)/gi, '@$1.$2');
+    // If we have 3 numeric parts: [Part1, Part2, Part3]
+    if (parsedNums.length === 3) {
+      let p1 = parsedNums[0];
+      let p2 = parsedNums[1];
+      let p3 = parsedNums[2];
+
+      // Case A: YYYY-MM-DD
+      if (p1.length === 4) {
+        const yr = p1;
+        const mo = p2.padStart(2, '0') === '00' ? '01' : p2.padStart(2, '0');
+        const dy = p3.padStart(2, '0') === '00' ? '01' : p3.padStart(2, '0');
+        return `${yr}-${mo}-${dy}`;
+      }
+
+      // Case B: MM-DD-YYYY (e.g. January 14 1996 -> parsedNums = ["01", "14", "1996"])
+      let yr = p3.length === 2 ? (Number(p3) > 40 ? `19${p3}` : `20${p3}`) : p3;
+      if (yr.length === 4) {
+        let mo = p2;
+        let dy = p1;
+
+        // If month was detected as first token or p1 <= 12 and p2 > 12
+        if (monthDetected && p1 === monthDetected && Number(p2) > 12) {
+          mo = p1;
+          dy = p2;
+        } else if (Number(p1) > 12 && Number(p2) <= 12) {
+          dy = p1;
+          mo = p2;
+        } else if (monthDetected) {
+          mo = monthDetected;
+          dy = p1 === monthDetected ? p2 : p1;
+        }
+
+        const cleanMo = mo.padStart(2, '0') === '00' ? '01' : mo.padStart(2, '0');
+        const cleanDy = dy.padStart(2, '0') === '00' ? '01' : dy.padStart(2, '0');
+        return `${yr}-${cleanMo}-${cleanDy}`;
+      }
     }
 
-    // 8. Normalize domain endings like 'gmail com' -> 'gmail.com', 'yahoo in' -> 'yahoo.in'
-    text = text.replace(/(gmail|yahoo|hotmail|outlook|rediffmail|gov|nic|icloud|protonmail)\s+(com|in|org|net|edu|gov\.in|nic\.in|co\.in)/gi, '$1.$2');
-
-    // 9. Remove all spaces around symbols and remove all remaining spaces
-    text = text
-      .replace(/\s*@\s*/g, '@')
-      .replace(/\s*\.\s*/g, '.')
-      .replace(/\s*_\s*/g, '_')
-      .replace(/\s*-\s*/g, '-')
-      .replace(/\s+/g, ''); // remove internal spaces in username
-
-    // 10. Fix multiple dots or symbols
-    text = text
-      .replace(/\.+/g, '.')
-      .replace(/@+/g, '@')
-      .replace(/^\.+|\.+$/g, '');
-
-    // 11. If user spoke something like "ravisingh@gmail" without ".com", append ".com"
-    if (/@(gmail|yahoo|hotmail|outlook|rediffmail|icloud|protonmail)$/i.test(text)) {
-      text = `${text}.com`;
+    // 7. Check 8 continuous digits: e.g. "14011996" -> 1996-01-14
+    const allDigits = this.parseSpokenNumbers(text);
+    if (allDigits.length === 8) {
+      const day = allDigits.slice(0, 2);
+      let month = allDigits.slice(2, 4);
+      if (month === '00') month = '01';
+      const year = allDigits.slice(4, 8);
+      if (Number(day) >= 1 && Number(day) <= 31 && Number(month) >= 1 && Number(month) <= 12 && Number(year) >= 1900 && Number(year) <= 2030) {
+        return `${year}-${month}-${day}`;
+      }
     }
 
-    // Keep only valid email characters (letters, numbers, ., _, -, @)
-    text = text.replace(/[^a-z0-9._\-@]/gi, '').toLowerCase();
+    // 8. Standard regex fallback
+    const dateMatch = raw.match(/([0-3]?[0-9])[\/\-\.\s]+([0-1]?[0-9]|[A-Za-z\u0900-\u097F]+)[\/\-\.\s]+([1-2][0-9]{3})/);
+    if (dateMatch) {
+      const day = dateMatch[1].padStart(2, '0');
+      let month = dateMatch[2];
+      const year = dateMatch[3];
 
-    return text;
+      if (/जनवरी|jan/i.test(month)) month = '01';
+      else if (/फरवरी|feb/i.test(month)) month = '02';
+      else if (/मार्च|mar/i.test(month)) month = '03';
+      else if (/अप्रैल|apr/i.test(month)) month = '04';
+      else if (/मई|may/i.test(month)) month = '05';
+      else if (/जून|jun/i.test(month)) month = '06';
+      else if (/जुलाई|jul/i.test(month)) month = '07';
+      else if (/अगस्त|aug/i.test(month)) month = '08';
+      else if (/सितंबर|sep/i.test(month)) month = '09';
+      else if (/अक्टूबर|oct/i.test(month)) month = '10';
+      else if (/नवंबर|nov/i.test(month)) month = '11';
+      else if (/दिसंबर|dec/i.test(month)) month = '12';
+      else {
+        month = month.padStart(2, '0');
+        if (month === '00') month = '01';
+      }
+
+      return `${year}-${month}-${day}`;
+    }
+
+    return raw;
   }
 
-  public parseSpokenNumbers(text: string): string {
-    if (!text) return '';
-    let normalized = text.toLowerCase();
+  public parseSpokenNumbers(raw: string): string {
+    if (!raw) return '';
+    let text = raw.toLowerCase().trim();
 
-    // 1. Convert Devanagari digits ०-९ to ASCII 0-9
-    normalized = normalized.replace(/[०-९]/g, (d) => String(d.charCodeAt(0) - 0x0966));
+    // 1. Convert Devanagari numerals ०-९ to ASCII 0-9
+    text = text.replace(/[०-९]/g, (d) => String(d.charCodeAt(0) - 0x0966));
 
-    // 2. Handle multipliers like double/triple/दो बार/तीन बार
-    normalized = normalized.replace(/(?:double|डबल|दो बार)\s*([0-9a-zA-Z\u0900-\u097F]+)/gi, (_m, word) => {
-      const d = HINDI_ENGLISH_NUMBERS_MAP[word.toLowerCase()] || word;
-      return `${d} ${d}`;
-    });
-    normalized = normalized.replace(/(?:triple|ट्रिपल|तीन बार)\s*([0-9a-zA-Z\u0900-\u097F]+)/gi, (_m, word) => {
-      const d = HINDI_ENGLISH_NUMBERS_MAP[word.toLowerCase()] || word;
-      return `${d} ${d} ${d}`;
-    });
+    // 2. Expand multipliers
+    text = text.replace(/\b(?:double|दो बार|do baar|do bar)\s+([^\s]+)/gi, '$1 $1');
+    text = text.replace(/\b(?:triple|तीन बार|teen baar|teen bar)\s+([^\s]+)/gi, '$1 $1 $1');
 
-    // 3. Handle English compound tens + units: "twenty five" -> "25", "ninety eight" -> "98"
-    const compoundTens: Record<string, number> = {
-      'twenty': 20, 'thirty': 30, 'forty': 40, 'fifty': 50,
-      'sixty': 60, 'seventy': 70, 'eighty': 80, 'ninety': 90
-    };
-    const compoundUnits: Record<string, number> = {
-      'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
-      'six': 6, 'seven': 7, 'eight': 8, 'nine': 9
-    };
-    for (const [tenWord, tenVal] of Object.entries(compoundTens)) {
-      for (const [unitWord, unitVal] of Object.entries(compoundUnits)) {
-        const pattern = new RegExp(`\\b${tenWord}\\s+${unitWord}\\b`, 'gi');
-        normalized = normalized.replace(pattern, String(tenVal + unitVal));
+    // 3. Tokenize by space, hyphen, comma
+    const tokens = text.split(/[\s,\-_]+/);
+    let result = '';
+
+    for (const token of tokens) {
+      if (!token) continue;
+
+      // Pure ASCII digits in token
+      const digitsOnly = token.replace(/\D/g, '');
+      if (digitsOnly.length > 0 && digitsOnly.length === token.length) {
+        result += digitsOnly;
+        continue;
+      }
+
+      // Check number word dictionary (Hindi, English, Romanized Hindi)
+      const mapped = HINDI_ENGLISH_NUMBERS_MAP[token];
+      if (mapped !== undefined) {
+        result += mapped;
+        continue;
+      }
+
+      // Fallback: if token has embedded digits (e.g. 98kh)
+      if (digitsOnly.length > 0) {
+        result += digitsOnly;
       }
     }
 
-    // 4. Tokenize & convert using HINDI_ENGLISH_NUMBERS_MAP
-    const words = normalized.split(/\s+/);
-    const convertedWords = words.map((w) => {
-      const cleanW = w.replace(/[.,:;\-]/g, '');
-      return HINDI_ENGLISH_NUMBERS_MAP[cleanW] !== undefined ? HINDI_ENGLISH_NUMBERS_MAP[cleanW] : cleanW;
-    });
+    return result;
+  }
 
-    const joined = convertedWords.join(' ');
-    const digitsOnly = joined.replace(/\D/g, '');
-    return digitsOnly;
+  public parseSpokenEmail(raw: string): string {
+    if (!raw) return '';
+    let text = raw.toLowerCase().trim();
+
+    text = text
+      .replace(/\s*(?:at the rate|at the rate of|@ rate|at rate|@)\s*/gi, '@')
+      .replace(/\s*(?:dot|bindu|point)\s*/gi, '.')
+      .replace(/\s*(?:underscore)\s*/gi, '_')
+      .replace(/\s*(?:hyphen|dash)\s*/gi, '-')
+      .replace(/\s+/g, '');
+
+    return text;
   }
 
   public extractCleanFieldValue(fieldKey: keyof CitizenFormData, rawTranscript: string): string {
@@ -1257,29 +1307,8 @@ export class VoiceAssistant {
       }
 
       case 'dob': {
-        const dateMatch = raw.match(/([0-3]?[0-9])[\/\-\.\s]+([0-1]?[0-9]|[A-Za-z\u0900-\u097F]+)[\/\-\.\s]+([1-2][0-9]{3})/);
-        if (dateMatch) {
-          const day = dateMatch[1].padStart(2, '0');
-          let month = dateMatch[2];
-          const year = dateMatch[3];
-
-          if (/जनवरी|jan/i.test(month)) month = '01';
-          else if (/फरवरी|feb/i.test(month)) month = '02';
-          else if (/मार्च|mar/i.test(month)) month = '03';
-          else if (/अप्रैल|apr/i.test(month)) month = '04';
-          else if (/मई|may/i.test(month)) month = '05';
-          else if (/जून|jun/i.test(month)) month = '06';
-          else if (/जुलाई|jul/i.test(month)) month = '07';
-          else if (/अगस्त|aug/i.test(month)) month = '08';
-          else if (/सितंबर|sep/i.test(month)) month = '09';
-          else if (/अक्टूबर|oct/i.test(month)) month = '10';
-          else if (/नवंबर|nov/i.test(month)) month = '11';
-          else if (/दिसंबर|dec/i.test(month)) month = '12';
-          else month = month.padStart(2, '0');
-
-          return `${year}-${month}-${day}`;
-        }
-        return raw;
+        const parsed = this.parseSpokenDate(raw);
+        return parsed || raw;
       }
 
       case 'maritalStatus': {
@@ -1412,6 +1441,22 @@ export class VoiceAssistant {
       displayLabel: string;
     }> = [];
 
+    // Global Hands-Free Command Intent Recognition
+    let commandAction: 'openCamera' | 'submitForm' | 'scrollTop' | 'resetForm' | 'openGuidedVoice' | undefined = undefined;
+    const cleanLower = transcript.toLowerCase().trim();
+
+    if (/(?:कैमरा खोलो|कैमरा चालू करो|फोटो खींचो|open camera|take photo|start camera)/i.test(cleanLower)) {
+      commandAction = 'openCamera';
+    } else if (/(?:फॉर्म सबमिट करो|आवेदन सबमिट करो|सबमिट करो|आवेदन जमा करो|submit form|submit application)/i.test(cleanLower)) {
+      commandAction = 'submitForm';
+    } else if (/(?:ऊपर जाओ|शीर्ष पर जाओ|सबसे ऊपर|scroll to top|scroll top|go to top)/i.test(cleanLower)) {
+      commandAction = 'scrollTop';
+    } else if (/(?:फॉर्म खाली करो|रीसेट करो|सब साफ करो|reset form|clear form)/i.test(cleanLower)) {
+      commandAction = 'resetForm';
+    } else if (/(?:बोलकर फॉर्म भरो|इंटरव्यू शुरू करो|गाइडेड वॉइस|start guided voice|start voice interview)/i.test(cleanLower)) {
+      commandAction = 'openGuidedVoice';
+    }
+
     // 1. Name Match
     const nameMatch = transcript.match(
       /(?:मेरा नाम है|मेरा नाम|नाम है|आवेदक का नाम|my name is|name is|name)\s+([A-Za-z\u0900-\u097F\s]{2,30})(?:\s+है|\s+rakhiye|\s+kijiye|$)/i
@@ -1531,7 +1576,31 @@ export class VoiceAssistant {
       });
     }
 
-    // 6. Aadhaar Match
+    // 6. Date of Birth (DOB) Match
+    const dobMatch = transcript.match(
+      /(?:जन्म तिथि|जन्म तारीख|जन्म दिन|date of birth|birth date|dob|born on)[\s:]*([A-Za-z\u0900-\u097F0-9\s,\-\/\.]{4,35})/i
+    );
+    if (dobMatch) {
+      const parsedDob = this.parseSpokenDate(dobMatch[1]);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(parsedDob)) {
+        fieldMatches.push({
+          fieldKey: 'dob',
+          value: parsedDob,
+          displayLabel: 'जन्म तिथि (DOB)'
+        });
+      }
+    } else {
+      const parsedDob = this.parseSpokenDate(transcript);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(parsedDob)) {
+        fieldMatches.push({
+          fieldKey: 'dob',
+          value: parsedDob,
+          displayLabel: 'जन्म तिथि (DOB)'
+        });
+      }
+    }
+
+    // 7. Aadhaar Match
     const aadhaarMatch = transcript.match(
       /(?:आधार नंबर|आधार कार्ड|आधार|aadhaar number|aadhaar)[\s:]*([A-Za-z\u0900-\u097F0-9\s]{10,30})/i
     );
@@ -1555,7 +1624,7 @@ export class VoiceAssistant {
       }
     }
 
-    // 7. Income Match
+    // 8. Income Match
     const incomeMatch = transcript.match(
       /(?:वार्षिक आय|आय|annual income|income)[\s:]*([0-9]+|एक लाख|दो लाख|पचास हजार|साठ हजार|सत्तर हजार|अस्सी हजार|नब्बे हजार|[A-Za-z\u0900-\u097F0-9\s]+)/i
     );
@@ -1570,7 +1639,7 @@ export class VoiceAssistant {
       }
     }
 
-    // 8. PIN Code Match
+    // 9. PIN Code Match
     const pinMatch = transcript.match(/(?:पिन कोड|पिनकोड|pin code|pincode)[\s:]*([A-Za-z\u0900-\u097F0-9\s]{4,15})/i);
     if (pinMatch) {
       const cleanPin = this.parseSpokenNumbers(pinMatch[1]);
@@ -1629,7 +1698,7 @@ export class VoiceAssistant {
       }
     }
 
-    // 9. Gender Match
+    // 10. Gender Match
     if (/(?:लिंग|gender)\s+(?:महिला|स्त्री|female)|\b(?:महिला|स्त्री|female)\b/i.test(transcript)) {
       fieldMatches.push({
         fieldKey: 'gender',
@@ -1644,7 +1713,7 @@ export class VoiceAssistant {
       });
     }
 
-    // 10. Social Category Match
+    // 11. Social Category Match
     if (/(?:जाति|category|वर्ग|श्रेणी)\s+(?:ओबीसी|obc|अन्य पिछड़ा)|\b(?:ओबीसी|obc|अन्य पिछड़ा)\b/i.test(transcript)) {
       fieldMatches.push({
         fieldKey: 'casteCategory',
@@ -1671,7 +1740,7 @@ export class VoiceAssistant {
       });
     }
 
-    // 11. Address / Village Match
+    // 12. Address / Village Match
     const addrMatch = transcript.match(/(?:पता|गाँव|ग्राम|निवास|वार्ड|address is|address)[\s:]+([A-Za-z\u0900-\u097F0-9\s,\-\/]{3,50})/i);
     if (addrMatch) {
       fieldMatches.push({
@@ -1681,7 +1750,7 @@ export class VoiceAssistant {
       });
     }
 
-    // 12. Email Match
+    // 13. Email Match
     const emailMatch = transcript.match(
       /(?:ईमेल पता|ईमेल आईडी|ईमेल|email address|email id|email)[\s:]*([A-Za-z0-9\u0900-\u097F._@\s\-]+)/i
     );
@@ -1707,9 +1776,14 @@ export class VoiceAssistant {
 
     return {
       transcript,
-      fieldMatches
+      fieldMatches,
+      commandAction
     };
   }
 }
 
 export const voiceAssistantService = new VoiceAssistant();
+export const parseSpokenDate = (raw: string) => voiceAssistantService.parseSpokenDate(raw);
+export const parseSpokenNumbers = (raw: string) => voiceAssistantService.parseSpokenNumbers(raw);
+export const parseSpokenEmail = (raw: string) => voiceAssistantService.parseSpokenEmail(raw);
+

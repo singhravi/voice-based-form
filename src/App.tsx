@@ -12,6 +12,7 @@ import { PhotoCaptureModal } from './components/PhotoCaptureModal';
 import { VoiceFloatingAssistant } from './components/VoiceFloatingAssistant';
 import { GuidedVoiceModal } from './components/GuidedVoiceModal';
 import { ApplicationPreviewModal } from './components/ApplicationPreviewModal';
+import { AccessibilityToolbar } from './components/AccessibilityToolbar';
 import {
   CheckCircle,
   FileCheck2,
@@ -77,12 +78,39 @@ export const App: React.FC = () => {
   const [notification, setNotification] = useState<{ title: string; message: string; type: 'success' | 'info' } | null>(null);
 
   const isHi = language === 'hi';
+  const [screenReaderAnnouncement, setScreenReaderAnnouncement] = useState('');
 
   const showToast = (title: string, message: string, type: 'success' | 'info' = 'success') => {
     setNotification({ title, message, type });
+    setScreenReaderAnnouncement(`${title}. ${message}`);
     setTimeout(() => {
       setNotification(null);
     }, 4500);
+  };
+
+  // Global Hands-Free Voice Commands Executor
+  const handleExecuteVoiceCommand = (command: 'openCamera' | 'submitForm' | 'scrollTop' | 'resetForm' | 'openGuidedVoice') => {
+    switch (command) {
+      case 'openCamera':
+        setIsPhotoModalOpen(true);
+        break;
+      case 'submitForm':
+        setIsPreviewModalOpen(true);
+        break;
+      case 'scrollTop':
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        break;
+      case 'resetForm':
+        setFormData(INITIAL_FORM_DATA);
+        showToast(
+          isHi ? 'फॉर्म रीसेट किया गया' : 'Form Reset',
+          isHi ? 'सभी फ़ील्ड्स को खाली कर दिया गया है' : 'All form inputs have been cleared'
+        );
+        break;
+      case 'openGuidedVoice':
+        setIsGuidedVoiceOpen(true);
+        break;
+    }
   };
 
   // Handle OCR Auto Fill
@@ -304,6 +332,12 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-emerald-50/40 via-slate-50 to-teal-50/30">
+      {/* Universal Inclusion & Accessibility Toolbar (Font Sizing, High Contrast, Screen Reader) */}
+      <AccessibilityToolbar
+        isHi={isHi}
+        onAnnounceMessage={screenReaderAnnouncement}
+      />
+
       {/* Header */}
       <Header
         language={language}
@@ -363,7 +397,7 @@ export const App: React.FC = () => {
                   {isHi ? 'पासपोर्ट फोटो' : 'Passport Photo'}
                 </span>
                 <span className="text-[10px] text-amber-200">
-                  {isHi ? 'वेबकैम / &lt;50KB' : 'Webcam / <50KB'}
+                  {isHi ? 'वेबकैम / <50KB' : 'Webcam / <50KB'}
                 </span>
               </div>
             </button>
@@ -401,7 +435,7 @@ export const App: React.FC = () => {
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg">
               <FileCheck2 size={15} className="text-emerald-600" />
               <span>
-                {formData.documents.length} {isHi ? 'दस्तावेज़ (&lt;200KB)' : 'Docs (<200KB)'}
+                {formData.documents.length} {isHi ? 'दस्तावेज़ (<200KB)' : 'Docs (<200KB)'}
               </span>
             </div>
 
@@ -455,6 +489,7 @@ export const App: React.FC = () => {
         isOpen={isVoiceModalOpen}
         onClose={() => setIsVoiceModalOpen(false)}
         onApplyVoiceData={handleApplyVoiceData}
+        onExecuteCommand={handleExecuteVoiceCommand}
         language={language}
       />
 

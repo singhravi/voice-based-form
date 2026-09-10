@@ -250,3 +250,76 @@ body {
     backdrop-filter: none !important;
   }
 }
+
+/* ==========================================================================
+   Universal High-Contrast Accessibility Mode (WCAG AAA Compliance)
+   ========================================================================== */
+body.high-contrast-mode {
+  background: #000000 !important;
+  color: #ffff00 !important;
+}
+
+body.high-contrast-mode .glass-panel,
+body.high-contrast-mode .bg-white,
+body.high-contrast-mode .bg-slate-50,
+body.high-contrast-mode .bg-slate-100,
+body.high-contrast-mode .bg-slate-900,
+body.high-contrast-mode .bg-emerald-50,
+body.high-contrast-mode .bg-emerald-900,
+body.high-contrast-mode .bg-emerald-950,
+body.high-contrast-mode .bg-blue-50,
+body.high-contrast-mode .bg-amber-50 {
+  background: #0a0a0a !important;
+  border-color: #ffff00 !important;
+  color: #ffff00 !important;
+  box-shadow: none !important;
+}
+
+body.high-contrast-mode input,
+body.high-contrast-mode select,
+body.high-contrast-mode textarea {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffff00 !important;
+  font-weight: bold !important;
+}
+
+body.high-contrast-mode input:focus,
+body.high-contrast-mode select:focus,
+body.high-contrast-mode textarea:focus {
+  outline: 3px solid #ffff00 !important;
+  outline-offset: 2px !important;
+}
+
+body.high-contrast-mode h1,
+body.high-contrast-mode h2,
+body.high-contrast-mode h3,
+body.high-contrast-mode h4,
+body.high-contrast-mode h5,
+body.high-contrast-mode strong,
+body.high-contrast-mode label {
+  color: #ffff00 !important;
+}
+
+body.high-contrast-mode p,
+body.high-contrast-mode span:not(.badge-ocr):not(.badge-voice) {
+  color: #ffffff !important;
+}
+
+body.high-contrast-mode .btn-primary {
+  background: #ffff00 !important;
+  color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  font-weight: 900 !important;
+}
+
+body.high-contrast-mode .btn-secondary {
+  background: #000000 !important;
+  color: #ffff00 !important;
+  border: 2px solid #ffff00 !important;
+}
+
+body.high-contrast-mode button {
+  border-color: #ffff00 !important;
+}
+

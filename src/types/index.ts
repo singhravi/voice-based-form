@@ -181,4 +181,6 @@ export interface VoiceRecognitionResult {
     value: string;
     displayLabel: string;
   }>;
+  commandAction?: 'openCamera' | 'submitForm' | 'scrollTop' | 'resetForm' | 'openGuidedVoice';
 }
+

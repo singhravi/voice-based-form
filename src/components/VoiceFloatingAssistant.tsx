@@ -8,6 +8,7 @@ interface VoiceFloatingAssistantProps {
   isOpen: boolean;
   onClose: () => void;
   onApplyVoiceData: (fields: Array<{ fieldKey: keyof CitizenFormData; value: string; displayLabel: string }>) => void;
+  onExecuteCommand?: (command: 'openCamera' | 'submitForm' | 'scrollTop' | 'resetForm' | 'openGuidedVoice') => void;
   language: Language;
 }
 
@@ -25,6 +26,7 @@ export const VoiceFloatingAssistant: React.FC<VoiceFloatingAssistantProps> = ({
   isOpen,
   onClose,
   onApplyVoiceData,
+  onExecuteCommand,
   language
 }) => {
   const isHi = language === 'hi';
@@ -56,6 +58,23 @@ export const VoiceFloatingAssistant: React.FC<VoiceFloatingAssistantProps> = ({
         },
         (result: VoiceRecognitionResult) => {
           setInterimText('');
+
+          // 1. Check for global voice commands
+          if (result.commandAction) {
+            onExecuteCommand?.(result.commandAction);
+            const actionLabels: Record<string, string> = {
+              openCamera: isHi ? 'कैमरा स्टूडियो खोला जा रहा है...' : 'Opening camera studio...',
+              submitForm: isHi ? 'आवेदन समीक्षा खोली जा रही है...' : 'Opening application review...',
+              scrollTop: isHi ? 'शीर्ष पर जाया जा रहा है...' : 'Scrolling to top...',
+              resetForm: isHi ? 'फॉर्म रीसेट किया गया' : 'Reset form triggered',
+              openGuidedVoice: isHi ? 'ऑडियो गाइड मोड शुरू हो रहा है...' : 'Starting voice guide flow...'
+            };
+            const msg = actionLabels[result.commandAction] || 'आदेश निष्पादित';
+            setStatusMessage(msg);
+            voiceAssistantService.speakFeedback(msg, isHi ? 'hi' : 'en');
+            return;
+          }
+
           if (result.fieldMatches.length > 0) {
             // Stage the recognized fields for user verification & correction
             const stagedFields = result.fieldMatches.map((m) => {
@@ -88,7 +107,7 @@ export const VoiceFloatingAssistant: React.FC<VoiceFloatingAssistantProps> = ({
           } else {
             setStatusMessage(
               isHi
-                ? `सुना: "${result.transcript}" (कृपया नाम, जिला या पिता का नाम स्पष्ट बोलें)`
+                ? `सुना: "${result.transcript}" (कृपया नाम, जिला, जन्मतिथि या आदेश जैसे "कैमरा खोलो" स्पष्ट बोलें)`
                 : `Heard: "${result.transcript}" (Please speak clearly)`
             );
           }
@@ -164,20 +183,22 @@ export const VoiceFloatingAssistant: React.FC<VoiceFloatingAssistantProps> = ({
     ? [
         'मेरा नाम राजेश नेगी है',
         'पिता का नाम बीरेंद्र नेगी',
+        'जन्म तिथि 14 मई 1996',
+        'मोबाइल नंबर 9897123456',
         'जिला देहरादून',
         'तहसील विकासनगर',
         'पिन कोड 248198',
-        'मोबाइल नंबर 9897123456',
         'वार्षिक आय 60000',
         'लिंग पुरुष'
       ]
     : [
         'My name is Ramesh Singh',
         'Father name is Birendra Singh',
+        'Date of birth 14 August 1995',
+        'Mobile number 9897112233',
         'District Almora',
         'Tehsil Ranikhet',
         'PIN code 263645',
-        'Mobile number 9897112233',
         'Annual income 80000'
       ];
 

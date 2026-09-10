@@ -8,7 +8,12 @@ import {
   Eye,
   FileText,
   RefreshCw,
-  Check
+  Check,
+  Code,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Camera
 } from 'lucide-react';
 import { compressImageToTarget, formatKB } from '../utils/imageCompressor';
 import { performOcrAndExtract } from '../utils/ocrParser';
@@ -16,6 +21,8 @@ import { processPdfDocument, createDemoAadhaarPdf } from '../utils/pdfProcessor'
 import { maskAadhaarNumber } from '../utils/aadhaarUtils';
 import { ExtractedDocData, Language, UploadedDocument } from '../types';
 import { SAMPLE_AADHAAR_MOCK, SAMPLE_BAAL_AADHAAR_MOCK, SAMPLE_TEHRI_AADHAAR_MOCK } from '../data/uttarakhandData';
+import { ExtractedJsonModal } from './ExtractedJsonModal';
+import { DocumentScannerModal } from './DocumentScannerModal';
 
 interface DocumentUploaderProps {
   documents: UploadedDocument[];
@@ -38,6 +45,72 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   const [ocrProgress, setOcrProgress] = useState<{ percent: number; status: string } | null>(null);
   const [previewDoc, setPreviewDoc] = useState<UploadedDocument | null>(null);
   const [justExtractedData, setJustExtractedData] = useState<ExtractedDocData | null>(null);
+
+  // State for JSON viewer modal & inline inspector
+  const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
+  const [jsonModalData, setJsonModalData] = useState<ExtractedDocData | null>(null);
+  const [jsonModalDocName, setJsonModalDocName] = useState<string>('Aadhaar_Document');
+  const [showInlineJsonInspector, setShowInlineJsonInspector] = useState(false);
+  const [inlineCopied, setInlineCopied] = useState(false);
+
+  // State for Document Camera Scanner Modal
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  const openJsonViewer = (data: ExtractedDocData, docName: string) => {
+    setJsonModalData(data);
+    setJsonModalDocName(docName);
+    setIsJsonModalOpen(true);
+  };
+
+  /**
+   * Handle document scanned from live camera
+   */
+  const handleScannedDocument = async (scannedDataUrl: string, docName: string, docType: string) => {
+    setIsProcessing(true);
+    try {
+      setOcrProgress({
+        percent: 25,
+        status: isHi ? 'स्कैन किए गए दस्तावेज़ का 200KB संपीड़न...' : 'Compressing scanned document to <200KB...'
+      });
+
+      // 1. Ensure < 200KB compliance
+      const compressed = await compressImageToTarget(scannedDataUrl, 195, 1800);
+
+      // 2. Perform OCR & Auto-Fill Extraction
+      setOcrProgress({
+        percent: 50,
+        status: isHi ? 'स्मार्ट OCR द्वारा टेक्स्ट एवं विवरण निकाला जा रहा है...' : 'Extracting identity data with AI OCR...'
+      });
+
+      const extracted = await performOcrAndExtract(compressed.dataUrl, (p, status) => {
+        setOcrProgress({ percent: Math.round(45 + p * 0.5), status });
+      });
+
+      const newDoc: UploadedDocument = {
+        id: `doc_scan_${Date.now()}`,
+        docType: docType || selectedDocType,
+        name: docName,
+        originalSizeKB: Math.round(((scannedDataUrl.length * 0.75) / 1024) * 10) / 10,
+        compressedSizeKB: compressed.compressedSizeKB,
+        dataUrl: compressed.dataUrl,
+        mimeType: 'image/jpeg',
+        uploadTimestamp: Date.now(),
+        isCompressed: true,
+        ocrExtracted: true,
+        extractedData: extracted
+      };
+
+      const updated = [newDoc, ...documents];
+      onDocumentsChange(updated);
+      setJustExtractedData(extracted);
+      onAutoFillData(extracted);
+    } catch (err) {
+      console.error('Scanned document processing error:', err);
+    } finally {
+      setIsProcessing(false);
+      setOcrProgress(null);
+    }
+  };
 
   const handleFileSelected = async (file: File) => {
     setIsProcessing(true);
@@ -77,15 +150,20 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
         onAutoFillData(pdfResult.extractedData);
       } else {
         // Image File Handling (JPG, PNG, WebP)
-        // 1. Auto-Compression to ensure <= 200KB (UK Govt Portal compliance)
-        setOcrProgress({ percent: 20, status: isHi ? 'दस्तावेज़ का आकार जांच एवं 200KB संपीड़न...' : 'Compressing document to <200KB...' });
-        
+        setOcrProgress({
+          percent: 20,
+          status: isHi ? 'दस्तावेज़ का आकार जांच एवं 200KB संपीड़न...' : 'Compressing document to <200KB...'
+        });
+
         const compressed = await compressImageToTarget(file, 195, 1800);
         const isCompressed = originalSizeKB > 200;
 
-        // 2. Perform OCR & Auto-Fill Extraction
-        setOcrProgress({ percent: 45, status: isHi ? 'स्मार्ट OCR द्वारा टेक्स्ट एवं विवरण निकाला जा रहा है...' : 'Extracting identity data with AI OCR...' });
-        
+        // Perform OCR & Auto-Fill Extraction
+        setOcrProgress({
+          percent: 45,
+          status: isHi ? 'स्मार्ट OCR द्वारा टेक्स्ट एवं विवरण निकाला जा रहा है...' : 'Extracting identity data with AI OCR...'
+        });
+
         const extracted = await performOcrAndExtract(compressed.dataUrl, (p, status) => {
           setOcrProgress({ percent: Math.round(40 + p * 0.55), status });
         });
@@ -130,7 +208,10 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   // Helper to test demo e-Aadhaar PDF
   const handleLoadDemoPdfAadhaar = async () => {
     setIsProcessing(true);
-    setOcrProgress({ percent: 20, status: isHi ? 'डेमो ई-आधार PDF उत्पन्न किया जा रहा है...' : 'Generating Official e-Aadhaar PDF...' });
+    setOcrProgress({
+      percent: 20,
+      status: isHi ? 'डेमो ई-आधार PDF उत्पन्न किया जा रहा है...' : 'Generating Official e-Aadhaar PDF...'
+    });
 
     try {
       const demoPdf = await createDemoAadhaarPdf();
@@ -142,24 +223,23 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     }
   };
 
-  // Helper to load mock Aadhaar image for instant interactive demo
+  // Helper to load mock Aadhaar image
   const handleLoadDemoAadhaar = async () => {
     setIsProcessing(true);
-    setOcrProgress({ percent: 30, status: isHi ? 'डेमो आधार कार्ड तैयार किया जा रहा है...' : 'Preparing Demo Uttarakhand ID...' });
+    setOcrProgress({
+      percent: 30,
+      status: isHi ? 'डेमो आधार कार्ड तैयार किया जा रहा है...' : 'Preparing Demo Uttarakhand ID...'
+    });
 
-    // Create a mock canvas Aadhaar sheet with upper letter and scissor cut line
     const canvas = document.createElement('canvas');
     canvas.width = 1000;
     canvas.height = 900;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // White page Background
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, 1000, 900);
-      
-      // ==========================================
+
       // TOP SECTION: Letter Dispatch (Above Scissor Line)
-      // ==========================================
       ctx.fillStyle = '#0a5c44';
       ctx.fillRect(40, 25, 920, 50);
       ctx.fillStyle = '#ffffff';
@@ -182,9 +262,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       ctx.fillStyle = '#334155';
       ctx.fillText('H.No 42, Deodar Enclave, Rajpur Road, Dehradun, Uttarakhand - 248001', 70, 180);
 
-      // ==========================================
-      // SCISSOR CUT LINE (✂ यहाँ से काटिए / Cut along this line ✂)
-      // ==========================================
+      // SCISSOR CUT LINE
       ctx.strokeStyle = '#b45309';
       ctx.lineWidth = 3;
       ctx.setLineDash([8, 8]);
@@ -192,15 +270,13 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       ctx.moveTo(40, 240);
       ctx.lineTo(960, 240);
       ctx.stroke();
-      ctx.setLineDash([]); // reset line dash
+      ctx.setLineDash([]);
 
       ctx.fillStyle = '#b45309';
       ctx.font = 'bold 18px sans-serif';
       ctx.fillText('✂ --- यहाँ से काटिए / Cut along this line (Aadhaar Card Below) --- ✂', 210, 232);
 
-      // ==========================================
-      // BOTTOM SECTION: Official Aadhaar Card (Below Scissor Line)
-      // ==========================================
+      // BOTTOM SECTION: Official Aadhaar Card
       ctx.strokeStyle = '#0a5c44';
       ctx.lineWidth = 6;
       ctx.strokeRect(40, 260, 920, 600);
@@ -222,7 +298,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       ctx.font = 'bold 18px sans-serif';
       ctx.fillText('[ फोटो / Photo ]', 105, 480);
 
-      // Text Fields (Below Scissor line)
+      // Text Fields
       ctx.fillStyle = '#0f172a';
       ctx.font = 'bold 22px sans-serif';
       ctx.fillText('नाम / Name: Ramesh Singh Negi (रमेश सिंह नेगी)', 290, 390);
@@ -245,7 +321,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       ctx.fillStyle = '#dc2626';
       ctx.font = 'bold 36px monospace';
       ctx.fillText('7829  4410  9821', 320, 748);
-      
+
       // Bottom banner
       ctx.fillStyle = '#f59e0b';
       ctx.fillRect(40, 800, 920, 55);
@@ -257,14 +333,13 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
 
     setTimeout(async () => {
-      // Auto compress to < 200KB
       const compressed = await compressImageToTarget(dataUrl, 180);
 
       const demoDoc: UploadedDocument = {
         id: `demo_${Date.now()}`,
         docType: 'Aadhaar Card / आधार कार्ड',
         name: 'Demo_Aadhaar_Card_ScissorLine.jpg',
-        originalSizeKB: 840.2, // Simulating a high-res capture
+        originalSizeKB: 840.2,
         compressedSizeKB: compressed.compressedSizeKB,
         dataUrl: compressed.dataUrl,
         mimeType: 'image/jpeg',
@@ -288,15 +363,17 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       });
       setIsProcessing(false);
       setOcrProgress(null);
-    }, 800);
+    }, 700);
   };
 
   // Helper to load Baal Aadhaar (Almora - Aadhaya Kargeti) demo
   const handleLoadDemoBaalAadhaar = async () => {
     setIsProcessing(true);
-    setOcrProgress({ percent: 35, status: isHi ? 'बाल आधार कार्ड (अल्मोड़ा) तैयार किया जा रहा है...' : 'Preparing Baal Aadhaar (Almora)...' });
+    setOcrProgress({
+      percent: 35,
+      status: isHi ? 'बाल आधार कार्ड (अल्मोड़ा) तैयार किया जा रहा है...' : 'Preparing Baal Aadhaar (Almora)...'
+    });
 
-    // Mock canvas for Baal Aadhaar
     const canvas = document.createElement('canvas');
     canvas.width = 1000;
     canvas.height = 900;
@@ -305,14 +382,12 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, 1000, 900);
 
-      // Header
       ctx.fillStyle = '#0a5c44';
       ctx.fillRect(40, 25, 920, 50);
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 20px sans-serif';
       ctx.fillText('भारतीय विशिष्ट पहचान प्राधिकरण | UNIQUE IDENTIFICATION AUTHORITY OF INDIA', 80, 57);
 
-      // Recipient box (Baal Aadhaar format)
       ctx.strokeStyle = '#cbd5e1';
       ctx.lineWidth = 2;
       ctx.strokeRect(50, 90, 900, 140);
@@ -325,7 +400,6 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       ctx.fillText('taya po taya, Talya, PO: Chaunallia, Sub District: Bhikia Sain, District: Almora, PIN: 263680', 70, 175);
       ctx.fillText('Mobile: 9410341276', 70, 205);
 
-      // Scissor line
       ctx.strokeStyle = '#b45309';
       ctx.lineWidth = 3;
       ctx.setLineDash([8, 8]);
@@ -339,7 +413,6 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       ctx.font = 'bold 16px sans-serif';
       ctx.fillText('✂ --- बाल आधार (यहाँ से काटिए / Cut along this line) --- ✂', 240, 245);
 
-      // Baal Aadhaar Card below
       ctx.strokeStyle = '#0284c7';
       ctx.lineWidth = 5;
       ctx.strokeRect(40, 270, 920, 590);
@@ -350,7 +423,6 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       ctx.font = 'bold 22px sans-serif';
       ctx.fillText('भारत सरकार | Government of India (बाल आधार)', 260, 312);
 
-      // Photo placeholder
       ctx.fillStyle = '#e0f2fe';
       ctx.fillRect(80, 360, 180, 220);
       ctx.strokeStyle = '#0284c7';
@@ -360,7 +432,6 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       ctx.font = 'bold 16px sans-serif';
       ctx.fillText('[ शिशु फोटो / Child ]', 90, 480);
 
-      // Child details
       ctx.fillStyle = '#0f172a';
       ctx.font = 'bold 22px sans-serif';
       ctx.fillText('Aadhaya Kargeti (आध्या करगेती)', 290, 390);
@@ -376,7 +447,6 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       ctx.fillStyle = '#334155';
       ctx.fillText('Address: Talya, Chaunallia, Bhikiasain, Almora, Uttarakhand - 263680', 290, 620);
 
-      // Red Aadhaar Number Box
       ctx.fillStyle = '#fef2f2';
       ctx.fillRect(80, 690, 840, 70);
       ctx.strokeStyle = '#dc2626';
@@ -418,13 +488,16 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       setJustExtractedData(SAMPLE_BAAL_AADHAAR_MOCK);
       setIsProcessing(false);
       setOcrProgress(null);
-    }, 800);
+    }, 700);
   };
 
   // Helper to load Tehri Garhwal Aadhaar (Sarswati - 249175) demo
   const handleLoadDemoTehriAadhaar = async () => {
     setIsProcessing(true);
-    setOcrProgress({ percent: 35, status: isHi ? 'टिहरी गढ़वाल आधार कार्ड (सरस्वती) लोड हो रहा है...' : 'Loading Tehri Garhwal Aadhaar (Sarswati)...' });
+    setOcrProgress({
+      percent: 35,
+      status: isHi ? 'टिहरी गढ़वाल आधार कार्ड (सरस्वती) लोड हो रहा है...' : 'Loading Tehri Garhwal Aadhaar (Sarswati)...'
+    });
 
     setTimeout(async () => {
       const demoDoc: UploadedDocument = {
@@ -449,6 +522,9 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     }, 600);
   };
 
+  // Active extracted data to show in inline inspector
+  const activeExtractedData = justExtractedData || documents[0]?.extractedData || null;
+
   return (
     <div className="mb-8">
       {/* Title & Badge */}
@@ -458,25 +534,35 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             <span className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center text-sm font-bold">
               2
             </span>
-            {isHi ? 'दस्तावेज़ अपलोड, स्वतः संपीड़न (<200KB) व स्वतः फॉर्म प्रविष्टि' : 'Document Upload, Auto-Compress (<200KB) & Auto-Fill'}
+            {isHi ? 'दस्तावेज़ स्कैन/अपलोड, स्वतः संपीड़न (<200KB) व स्वतः फॉर्म प्रविष्टि' : 'Document Scan / Upload, Auto-Compress (<200KB) & Auto-Fill'}
           </h2>
           <p className="text-sm text-slate-600 mt-0.5">
             {isHi
-              ? 'आधार कार्ड, बाल आधार, राशन कार्ड या पहचान पत्र अपलोड करें। 200KB से अधिक होने पर स्वतः छोटा होगा और फॉर्म भर जाएगा।'
-              : 'Upload Aadhaar, Baal Aadhaar, Ration Card or ID. If size is >200KB it will auto-compress and auto-fill form fields.'}
+              ? 'कैमरा से स्कैन करें या आधार कार्ड, बाल आधार, राशन कार्ड फाइल अपलोड करें। 200KB से अधिक होने पर स्वतः छोटा होगा और फॉर्म भर जाएगा।'
+              : 'Scan live with camera or upload Aadhaar, Baal Aadhaar, Ration Card. Auto-compresses to strictly <200KB & auto-fills form.'}
           </p>
         </div>
 
-        {/* Demo Fast Fill Buttons */}
+        {/* Fast Test Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <button
+            onClick={() => setIsScannerOpen(true)}
+            disabled={isProcessing}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white rounded-lg text-xs font-black shadow-sm hover:from-emerald-700 hover:to-teal-800 transition-all cursor-pointer ring-2 ring-emerald-400/50"
+            title="कैमरा से दस्तावेज़ स्कैन करें"
+          >
+            <Camera size={14} className="text-amber-300 animate-pulse" />
+            <span>{isHi ? 'कैमरा से स्कैन करें' : 'Scan via Camera'}</span>
+          </button>
+
           <button
             onClick={handleLoadDemoTehriAadhaar}
             disabled={isProcessing}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-lg text-xs font-bold shadow-sm hover:from-emerald-700 hover:to-teal-800 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-slate-800 to-slate-900 text-white rounded-lg text-xs font-bold shadow-sm hover:from-slate-700 hover:to-slate-800 transition-all cursor-pointer border border-slate-700"
             title="टिहरी गढ़वाल आधार कार्ड (सरस्वती) से तुरंत परीक्षण करें"
           >
-            <Zap size={14} className="fill-current text-amber-300" />
-            <span>{isHi ? 'आधार (टिहरी - सरस्वती)' : 'Try Aadhaar (Tehri - Sarswati)'}</span>
+            <Zap size={13} className="fill-current text-amber-300" />
+            <span>{isHi ? 'टिहरी आधार' : 'Tehri ID'}</span>
           </button>
 
           <button
@@ -485,8 +571,8 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-sky-600 to-blue-700 text-white rounded-lg text-xs font-bold shadow-sm hover:from-sky-700 hover:to-blue-800 transition-all cursor-pointer"
             title="बाल आधार कार्ड (अल्मोड़ा) से तुरंत परीक्षण करें"
           >
-            <Sparkles size={14} className="fill-current" />
-            <span>{isHi ? 'बाल आधार (अल्मोड़ा) टेस्ट' : 'Try Baal Aadhaar (Almora)'}</span>
+            <Sparkles size={13} className="fill-current" />
+            <span>{isHi ? 'बाल आधार' : 'Baal Aadhaar'}</span>
           </button>
 
           <button
@@ -495,8 +581,8 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-red-600 to-rose-700 text-white rounded-lg text-xs font-bold shadow-sm hover:from-red-700 hover:to-rose-800 transition-all cursor-pointer"
             title="परीक्षण हेतु डिजिटल ई-आधार PDF लोड करें"
           >
-            <FileText size={14} className="fill-current" />
-            <span>{isHi ? 'ई-आधार PDF से टेस्ट करें' : 'Try e-Aadhaar PDF'}</span>
+            <FileText size={13} className="fill-current" />
+            <span>{isHi ? 'ई-आधार PDF' : 'e-Aadhaar PDF'}</span>
           </button>
 
           <button
@@ -505,8 +591,8 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg text-xs font-bold shadow-sm hover:from-amber-600 hover:to-amber-700 transition-all cursor-pointer"
             title="तुरंत परीक्षण हेतु आधार कार्ड इमेज लोड करें"
           >
-            <Zap size={14} className="fill-current" />
-            <span>{isHi ? 'आधार कार्ड फोटो से टेस्ट' : 'Try Aadhaar Photo'}</span>
+            <Zap size={13} className="fill-current" />
+            <span>{isHi ? 'आधार फोटो' : 'Aadhaar Photo'}</span>
           </button>
         </div>
       </div>
@@ -523,11 +609,11 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
               <RefreshCw className="w-16 h-16 text-emerald-600 animate-spin" />
               <Sparkles className="w-6 h-6 text-amber-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
             </div>
-            
+
             <h4 className="text-base font-bold text-slate-900 mb-1">
               {ocrProgress?.status || (isHi ? 'प्रसंस्करण जारी है...' : 'Processing Document...')}
             </h4>
-            
+
             {ocrProgress && (
               <div className="w-full max-w-xs mt-3">
                 <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
@@ -553,18 +639,22 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             <div>
               <div className="flex items-center gap-2 justify-center md:justify-start flex-wrap">
                 <h3 className="font-bold text-slate-900 text-base">
-                  {isHi ? 'दस्तावेज़ फाइल (PDF या इमेज) यहाँ खींचें या चुनें' : 'Drag & Drop your document (.PDF, .JPG, .PNG)'}
+                  {isHi ? 'दस्तावेज़ स्कैन करें या फाइल खींचें/चुनें' : 'Scan via Camera or Drag & Drop Document'}
                 </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                  <Camera size={11} className="text-emerald-600" />
+                  Live Scan Ready
+                </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
                   .PDF Supported
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
                 {isHi
-                  ? 'समर्थित: PDF (ई-आधार), JPG, PNG, WebP (उत्तराखंड पोर्टल मानक: अधिकतम 200 KB स्वतः संपीड़ित होगा)'
-                  : 'Supported: PDF (e-Aadhaar / scanned ID), JPG, PNG, WebP (Auto-compressed to strictly < 200 KB)'}
+                  ? 'लाइव कैमरा स्कैनर (AI OCR), PDF (ई-आधार), JPG, PNG, WebP (उत्तराखंड पोर्टल मानक: अधिकतम 200 KB स्वतः संपीड़ित होगा)'
+                  : 'Live Camera Scanner (AI OCR), PDF (e-Aadhaar), JPG, PNG, WebP (Auto-compressed to strictly < 200 KB)'}
               </p>
-              
+
               {/* Document Type Dropdown */}
               <div className="mt-3 flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-700">
@@ -585,8 +675,19 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             </div>
           </div>
 
-          {/* Right Action Button */}
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Right Action Buttons: Scan via Camera Beside Upload File */}
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 flex-shrink-0">
+            {/* 1. Live Camera Scan Button */}
+            <button
+              onClick={() => setIsScannerOpen(true)}
+              className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold text-sm rounded-xl shadow-md flex items-center justify-center gap-2 transition-all hover:scale-102 cursor-pointer border border-emerald-500/40"
+              title={isHi ? 'कैमरा चालू कर दस्तावेज़ स्कैन करें' : 'Scan document directly using camera'}
+            >
+              <Camera size={16} className="text-amber-300" />
+              <span>{isHi ? 'कैमरा से स्कैन करें' : 'Scan Document'}</span>
+            </button>
+
+            {/* 2. File Browser Button */}
             <input
               type="file"
               ref={fileInputRef}
@@ -599,16 +700,17 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="btn-primary px-5 py-2.5 text-sm shadow-md cursor-pointer flex items-center gap-2"
+              className="w-full sm:w-auto btn-primary px-4 py-2.5 text-sm shadow-md cursor-pointer flex items-center justify-center gap-2"
+              title={isHi ? 'कंप्यूटर/मोबाइल से फाइल चुनें' : 'Browse local PDF or Image file'}
             >
               <Upload size={16} />
-              {isHi ? 'PDF / दस्तावेज़ चुनें व स्वतः भरें' : 'Browse PDF/File & Auto-Fill'}
+              <span>{isHi ? 'फाइल चुनें' : 'Upload File'}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Just Extracted Banner Notification */}
+      {/* Just Extracted Banner Notification with Direct JSON Viewer Trigger */}
       {justExtractedData && (
         <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-300 rounded-xl shadow-sm animate-fade-in flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -618,7 +720,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-sm text-emerald-950">
-                  {isHi ? 'दस्तावेज़ (PDF/इमेज) से डेटा सफलतापूर्वक निकाला गया!' : 'Document Data Extracted Successfully!'}
+                  {isHi ? 'दस्तावेज़ से डेटा सफलतापूर्वक निकाला गया!' : 'Document Data Extracted Successfully!'}
                 </span>
                 <span className="badge-ocr">
                   <Sparkles size={11} />
@@ -632,30 +734,55 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
               </div>
               <p className="text-xs text-emerald-800 mt-0.5">
                 {isHi
-                  ? `नाम: ${justExtractedData.fullNameHi || justExtractedData.fullName || 'N/A'} (${justExtractedData.fullName || 'N/A'}) | पिता: ${justExtractedData.fatherHusbandNameHi || justExtractedData.fatherHusbandName || 'N/A'} | जिला: ${justExtractedData.districtHi || justExtractedData.district || 'N/A'} | पिन: ${justExtractedData.pinCode || 'N/A'} | आधार: ${maskAadhaarNumber(justExtractedData.aadhaarNumber) || 'N/A'}`
-                  : `Extracted: ${justExtractedData.fullName || 'N/A'} (${justExtractedData.fullNameHi || ''}), Father: ${justExtractedData.fatherHusbandName || 'N/A'}, District: ${justExtractedData.district || 'N/A'}, PIN: ${justExtractedData.pinCode || 'N/A'}, Aadhaar: ${maskAadhaarNumber(justExtractedData.aadhaarNumber) || 'N/A'}`}
+                  ? `नाम: ${justExtractedData.fullNameHi || justExtractedData.fullName || 'N/A'} (${justExtractedData.fullName || 'N/A'}) | पिता: ${justExtractedData.fatherHusbandNameHi || justExtractedData.fatherHusbandName || 'N/A'} | जन्म तिथि: ${justExtractedData.dob || 'N/A'} | जिला: ${justExtractedData.districtHi || justExtractedData.district || 'N/A'} | पिन: ${justExtractedData.pinCode || 'N/A'} | आधार: ${maskAadhaarNumber(justExtractedData.aadhaarNumber) || 'N/A'}`
+                  : `Extracted: ${justExtractedData.fullName || 'N/A'} (${justExtractedData.fullNameHi || ''}), Father: ${justExtractedData.fatherHusbandName || 'N/A'}, DOB: ${justExtractedData.dob || 'N/A'}, District: ${justExtractedData.district || 'N/A'}, PIN: ${justExtractedData.pinCode || 'N/A'}, Aadhaar: ${maskAadhaarNumber(justExtractedData.aadhaarNumber) || 'N/A'}`}
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setJustExtractedData(null)}
-            className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 px-2.5 py-1 rounded bg-white border border-emerald-200 shadow-2xs self-end sm:self-auto cursor-pointer"
-          >
-            {isHi ? 'ठीक है (OK)' : 'Dismiss'}
-          </button>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+            <button
+              onClick={() => openJsonViewer(justExtractedData, selectedDocType)}
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-800 hover:text-emerald-700 px-3 py-1.5 rounded-lg bg-white border border-emerald-300 shadow-sm transition-all cursor-pointer hover:bg-emerald-50"
+              title="निष्कर्षित JSON डेटा देखें"
+            >
+              <Code size={14} className="text-emerald-600" />
+              <span>{isHi ? '{ } डेटा JSON देखें' : '{ } View Extracted JSON'}</span>
+            </button>
+
+            <button
+              onClick={() => setJustExtractedData(null)}
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 px-2.5 py-1.5 rounded bg-white/80 border border-emerald-200 shadow-2xs cursor-pointer"
+            >
+              {isHi ? 'ठीक है (OK)' : 'Dismiss'}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Uploaded Documents List with Before/After Compression Metrics */}
+      {/* Uploaded Documents List */}
       {documents.length > 0 && (
         <div className="mt-5 space-y-3">
-          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-            <FileText size={14} className="text-emerald-600" />
-            {isHi ? 'अपलोड एवं संकुचित दस्तावेज़ सूची' : 'Attached & Compressed Documents'}
-            <span className="bg-slate-200 text-slate-700 px-2 py-0.2 rounded-full text-[11px]">
-              {documents.length}
-            </span>
-          </h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText size={14} className="text-emerald-600" />
+              {isHi ? 'अपलोड एवं संकुचित दस्तावेज़ सूची' : 'Attached & Compressed Documents'}
+              <span className="bg-slate-200 text-slate-700 px-2 py-0.2 rounded-full text-[11px]">
+                {documents.length}
+              </span>
+            </h4>
+
+            {activeExtractedData && (
+              <button
+                onClick={() => setShowInlineJsonInspector(!showInlineJsonInspector)}
+                className="flex items-center gap-1 text-xs font-bold text-slate-700 hover:text-emerald-700 bg-slate-100 hover:bg-emerald-50 px-2.5 py-1 rounded-lg border border-slate-300 transition-colors cursor-pointer"
+              >
+                <Code size={13} className="text-emerald-600" />
+                <span>{isHi ? 'OCR इंजन JSON विश्लेषक' : 'OCR Engine JSON Inspector'}</span>
+                {showInlineJsonInspector ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              </button>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {documents.map((doc) => {
@@ -693,7 +820,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                       </div>
                       <p className="text-[11px] text-slate-500 truncate">{doc.name}</p>
 
-                      {/* Compression Metrics Badge */}
+                      {/* Compression & Extraction Badges */}
                       <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-full">
                           <Check size={10} />
@@ -723,6 +850,17 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
                   {/* Actions */}
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    {doc.extractedData && (
+                      <button
+                        onClick={() => openJsonViewer(doc.extractedData!, doc.name)}
+                        className="flex items-center gap-1 px-2 py-1 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                        title={isHi ? 'डेटा JSON देखें' : 'View Extracted JSON'}
+                      >
+                        <Code size={14} className="text-emerald-600" />
+                        <span className="hidden sm:inline">JSON</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => setPreviewDoc(doc)}
                       className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
@@ -742,6 +880,60 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Inline Live JSON Inspector Panel (Collapsible) */}
+      {showInlineJsonInspector && activeExtractedData && (
+        <div className="mt-4 p-4 bg-slate-900 border border-slate-700 rounded-2xl shadow-md animate-fade-in text-slate-100">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Code className="w-5 h-5 text-emerald-400" />
+              <div>
+                <h4 className="font-bold text-sm text-white">
+                  {isHi ? 'आधार OCR इंजन - निष्कर्षित JSON आउटपुट' : 'Aadhaar OCR Engine - Live Extracted JSON'}
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  {isHi
+                    ? 'इंजन द्वारा निकाले गए फ़ील्ड्स (नाम, पिता का नाम, जन्म तिथि, पता, पिन कोड, आधार संख्या)'
+                    : 'Structured data parsed from document (Name, Father Name, DOB, Address, PIN, Aadhaar)'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(activeExtractedData, null, 2));
+                  setInlineCopied(true);
+                  setTimeout(() => setInlineCopied(false), 2000);
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg border border-slate-700 text-slate-300 transition-colors cursor-pointer"
+              >
+                {inlineCopied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                <span>{inlineCopied ? 'Copied!' : 'Copy JSON'}</span>
+              </button>
+
+              <button
+                onClick={() => openJsonViewer(activeExtractedData, 'Aadhaar_Document')}
+                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-xs font-bold rounded-lg text-white transition-colors cursor-pointer"
+              >
+                <Eye size={12} />
+                <span>{isHi ? 'फुल स्क्रीन व्यू' : 'Expand Inspector'}</span>
+              </button>
+            </div>
+          </div>
+
+          <pre className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 font-mono text-xs text-emerald-300 overflow-x-auto leading-relaxed max-h-64 overflow-y-auto">
+            {JSON.stringify(
+              {
+                ...activeExtractedData,
+                aadhaarNumber: maskAadhaarNumber(activeExtractedData.aadhaarNumber)
+              },
+              null,
+              2
+            )}
+          </pre>
         </div>
       )}
 
@@ -773,7 +965,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                 ✕
               </button>
             </div>
-            
+
             <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center bg-slate-100">
               <img
                 src={previewDoc.dataUrl}
@@ -783,10 +975,28 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
             </div>
 
             <div className="bg-white p-4 border-t border-slate-200 flex justify-between items-center text-xs">
-              <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                <CheckCircle2 size={14} />
-                {isHi ? '200 KB सरकारी मानक के अनुसार संकुचित' : 'Optimized & Compressed (< 200 KB)'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                  <CheckCircle2 size={14} />
+                  {isHi ? '200 KB सरकारी मानक के अनुसार संकुचित' : 'Optimized & Compressed (< 200 KB)'}
+                </span>
+
+                {previewDoc.extractedData && (
+                  <button
+                    onClick={() => {
+                      const data = previewDoc.extractedData!;
+                      const name = previewDoc.name;
+                      setPreviewDoc(null);
+                      openJsonViewer(data, name);
+                    }}
+                    className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline flex items-center gap-1 cursor-pointer ml-2"
+                  >
+                    <Code size={13} />
+                    <span>{isHi ? 'डेटा JSON देखें' : 'View Extracted JSON'}</span>
+                  </button>
+                )}
+              </div>
+
               <button
                 onClick={() => setPreviewDoc(null)}
                 className="btn-primary text-xs py-1.5 px-4 cursor-pointer"
@@ -797,6 +1007,24 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
           </div>
         </div>
       )}
+
+      {/* Extracted JSON Data Full Screen / Detailed Modal */}
+      <ExtractedJsonModal
+        isOpen={isJsonModalOpen}
+        onClose={() => setIsJsonModalOpen(false)}
+        extractedData={jsonModalData}
+        documentName={jsonModalDocName}
+        language={language}
+      />
+
+      {/* Live Document Camera Scanner Modal */}
+      <DocumentScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanComplete={handleScannedDocument}
+        defaultDocType={selectedDocType}
+        language={language}
+      />
     </div>
   );
 };

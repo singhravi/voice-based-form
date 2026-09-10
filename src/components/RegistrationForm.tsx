@@ -4,7 +4,7 @@ import {
   Language
 } from '../types';
 import { UTTARAKHAND_DISTRICTS, OCCUPATIONS_LIST } from '../data/uttarakhandData';
-import { voiceAssistantService, FIELD_VOICE_CONFIGS, VoiceLanguageMode } from '../utils/voiceAssistant';
+import { voiceAssistantService, FIELD_VOICE_CONFIGS, VoiceLanguageMode, parseSpokenDate } from '../utils/voiceAssistant';
 import { parseUttarakhandName, parseBilingualAddress } from '../utils/uttarakhandPhonetics';
 import { lookupPincode, lookupPincodeSync } from '../utils/pincodeLookup';
 import {
@@ -26,10 +26,20 @@ import {
   AlertTriangle,
   Zap,
   Shield,
-  Loader2
+  Loader2,
+  Calendar,
+  Phone,
+  Mail,
+  Users,
+  IndianRupee,
+  Award,
+  Heart,
+  UserCheck,
+  Code
 } from 'lucide-react';
 import { formatKB } from '../utils/imageCompressor';
 import { maskAadhaarNumber, formatAadhaarNumber } from '../utils/aadhaarUtils';
+import { ExtractedJsonModal } from './ExtractedJsonModal';
 
 interface RegistrationFormProps {
   formData: CitizenFormData;
@@ -69,6 +79,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [pincodeFeedback, setPincodeFeedback] = useState<string | null>(null);
   const [availablePostOfficesList, setAvailablePostOfficesList] = useState<Array<{ en: string; hi: string }>>([]);
   const [showAadhaar, setShowAadhaar] = useState(false);
+  const [isFormJsonModalOpen, setIsFormJsonModalOpen] = useState(false);
 
   // Find tehsils for selected district
   const selectedDistrictData = UTTARAKHAND_DISTRICTS.find(
@@ -221,6 +232,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             const names = parseUttarakhandName(cleanValue);
             updates.motherName = names.englishName || cleanValue;
             updates.motherNameHi = names.hindiName || cleanValue;
+          } else if (fieldKey === 'dob') {
+            const parsedDob = parseSpokenDate(cleanValue);
+            updates.dob = parsedDob || cleanValue;
+          } else if (fieldKey === 'mobileNumber') {
+            const parsedMob = voiceAssistantService.parseSpokenNumbers(cleanValue);
+            updates.mobileNumber = parsedMob.length >= 10 ? parsedMob.slice(-10) : parsedMob || cleanValue;
           } else if (fieldKey === 'villageWard' || fieldKey === 'villageWardHi') {
             const addr = parseBilingualAddress(cleanValue);
             updates.villageWard = addr.english || cleanValue;
@@ -248,6 +265,12 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
           onChange(updates, 'voice');
 
+          const recordedVal = (updates[fieldKey] as string) || cleanValue;
+          const speechEcho = isHi 
+            ? `${displayLabel} सुना गया: ${recordedVal}।` 
+            : `${displayLabel} heard as: ${recordedVal}.`;
+          voiceAssistantService.speakFeedback(speechEcho, isHi ? 'hi' : 'en');
+
           setPendingConfirmation({
             fieldKey,
             displayLabel,
@@ -274,7 +297,14 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const handleAcceptVoice = (customVal?: string) => {
     const valToUse = customVal !== undefined ? customVal : editingValue;
     if (pendingConfirmation) {
-      const updates: Partial<CitizenFormData> = { [pendingConfirmation.fieldKey]: valToUse };
+      let finalVal = valToUse;
+      if (pendingConfirmation.fieldKey === 'dob') {
+        finalVal = parseSpokenDate(valToUse) || valToUse;
+      } else if (pendingConfirmation.fieldKey === 'mobileNumber') {
+        const p = voiceAssistantService.parseSpokenNumbers(valToUse);
+        finalVal = p.length >= 10 ? p.slice(-10) : p || valToUse;
+      }
+      const updates: Partial<CitizenFormData> = { [pendingConfirmation.fieldKey]: finalVal };
       if (pendingConfirmation.fieldKey === 'fullName') {
         const names = parseUttarakhandName(valToUse);
         if (names.hindiName) {
@@ -683,18 +713,31 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       <div className="p-6 sm:p-8 space-y-8">
         {/* Section A: Applicant Personal Information */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
-            <User className="w-5 h-5 text-emerald-700" />
-            <h3 className="font-bold text-base text-slate-900">
-              {isHi ? 'क. आवेदक का व्यक्तिगत विवरण' : 'A. Applicant Personal Information'}
-            </h3>
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <User className="w-5 h-5 text-emerald-700" />
+              <h3 className="font-bold text-base text-slate-900">
+                {isHi ? 'क. आवेदक का व्यक्तिगत विवरण' : 'A. Applicant Personal Information'}
+              </h3>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsFormJsonModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-emerald-700 bg-slate-100 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-300 rounded-lg transition-colors cursor-pointer"
+              title="फॉर्म में दर्ज डेटा को JSON के रूप में देखें"
+            >
+              <Code size={13} className="text-emerald-600" />
+              <span>{isHi ? '{ } डेटा JSON देखें' : '{ } View Form JSON'}</span>
+            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Full Name */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <User size={13} className="text-emerald-700" />
                   <span>{isHi ? 'पूरा नाम (अंग्रेजी में) *' : 'Full Name (in English) *'}</span>
                   {renderFieldSourceBadge('fullName')}
                 </label>
@@ -720,7 +763,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Full Name Hindi */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <User size={13} className="text-emerald-700" />
                   <span>{isHi ? 'पूरा नाम (हिंदी में)' : 'Full Name (in Hindi)'}</span>
                   {renderFieldSourceBadge('fullNameHi')}
                 </label>
@@ -745,7 +789,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Gender */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <UserCheck size={13} className="text-blue-700" />
                   <span>{isHi ? 'लिंग (Gender) *' : 'Gender *'}</span>
                   {renderFieldSourceBadge('gender')}
                 </label>
@@ -765,7 +810,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Date of Birth */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Calendar size={13} className="text-purple-700" />
                   <span>{isHi ? 'जन्म तिथि (DOB) *' : 'Date of Birth (DOB) *'}</span>
                   {renderFieldSourceBadge('dob')}
                 </label>
@@ -844,7 +890,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Mobile Number */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Phone size={13} className="text-emerald-700" />
                   <span>{isHi ? 'मोबाइल नंबर (SMS हेतु) *' : 'Mobile Number (for SMS) *'}</span>
                   {renderFieldSourceBadge('mobileNumber')}
                 </label>
@@ -864,7 +911,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Email Address */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Mail size={13} className="text-blue-700" />
                   <span>{isHi ? 'ईमेल पता' : 'Email Address'}</span>
                   {renderFieldSourceBadge('email')}
                 </label>
@@ -882,7 +930,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Caste Category */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Award size={13} className="text-amber-700" />
                   <span>{isHi ? 'सामाजिक वर्ग (Category) *' : 'Social Category *'}</span>
                   {renderFieldSourceBadge('casteCategory')}
                 </label>
@@ -904,7 +953,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Marital Status */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Heart size={13} className="text-rose-600" />
                   <span>{isHi ? 'वैवाहिक स्थिति *' : 'Marital Status *'}</span>
                   {renderFieldSourceBadge('maritalStatus')}
                 </label>
@@ -927,7 +977,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         {/* Section B: Family & Relation Details */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-200">
-            <User className="w-5 h-5 text-emerald-700" />
+            <Users className="w-5 h-5 text-emerald-700" />
             <h3 className="font-bold text-base text-slate-900">
               {isHi ? 'ख. पारिवारिक एवं संरक्षक विवरण (द्विभाषी / Dual Entry)' : 'B. Family & Guardian Details (Bilingual / Dual Entry)'}
             </h3>
@@ -937,7 +987,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Father / Husband Name (English) */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <User size={13} className="text-blue-700" />
                   <span>{isHi ? 'पिता / पति का नाम (अंग्रेजी में) *' : "Father / Husband's Name (in English) *"}</span>
                   {renderFieldSourceBadge('fatherHusbandName')}
                 </label>
@@ -963,7 +1014,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Father / Husband Name (Hindi) */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <User size={13} className="text-blue-700" />
                   <span>{isHi ? 'पिता / पति का नाम (हिंदी में)' : "Father / Husband's Name (in Hindi)"}</span>
                   {renderFieldSourceBadge('fatherHusbandNameHi')}
                 </label>
@@ -988,7 +1040,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Relation Type */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Users size={13} className="text-indigo-700" />
                   <span>{isHi ? 'संबंध प्रकार *' : 'Relation Type *'}</span>
                   {renderFieldSourceBadge('relationType')}
                 </label>
@@ -1008,7 +1061,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Mother Name (English) */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Heart size={13} className="text-rose-700" />
                   <span>{isHi ? 'माता का नाम (अंग्रेजी में) *' : "Mother's Name (in English) *"}</span>
                   {renderFieldSourceBadge('motherName')}
                 </label>
@@ -1033,7 +1087,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Mother Name (Hindi) */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Heart size={13} className="text-rose-700" />
                   <span>{isHi ? 'माता का नाम (हिंदी में)' : "Mother's Name (in Hindi)"}</span>
                   {renderFieldSourceBadge('motherNameHi')}
                 </label>
@@ -1526,7 +1581,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Annual Income */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <IndianRupee size={13} className="text-emerald-700" />
                   <span>{isHi ? 'पारिवारिक वार्षिक आय (₹) *' : 'Annual Household Income (₹) *'}</span>
                   {renderFieldSourceBadge('annualIncome')}
                 </label>
@@ -1550,7 +1606,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             {/* Living Since Years */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Calendar size={13} className="text-indigo-700" />
                   <span>{isHi ? 'उत्तराखंड में निवास अवधि (वर्ष)' : 'Years in Uttarakhand'}</span>
                   {renderFieldSourceBadge('livingSinceYears')}
                 </label>
@@ -1596,6 +1653,45 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Form Data JSON Inspector Modal */}
+      <ExtractedJsonModal
+        isOpen={isFormJsonModalOpen}
+        onClose={() => setIsFormJsonModalOpen(false)}
+        extractedData={{
+          fullName: formData.fullName,
+          fullNameHi: formData.fullNameHi,
+          fatherHusbandName: formData.fatherHusbandName,
+          fatherHusbandNameHi: formData.fatherHusbandNameHi,
+          motherName: formData.motherName,
+          motherNameHi: formData.motherNameHi,
+          dob: formData.dob,
+          gender: (formData.gender as 'Male' | 'Female' | 'Transgender') || undefined,
+          aadhaarNumber: formData.aadhaarNumber,
+          panNumber: formData.panNumber,
+          voterId: formData.voterId,
+          mobileNumber: formData.mobileNumber,
+          addressLine: formData.addressLine,
+          addressLineHi: formData.addressLineHi,
+          pinCode: formData.pinCode,
+          district: formData.district,
+          districtHi: formData.districtHi,
+          tehsil: formData.tehsil,
+          tehsilHi: formData.tehsilHi,
+          postOffice: formData.postOffice,
+          postOfficeHi: formData.postOfficeHi,
+          policeStation: formData.policeStation,
+          policeStationHi: formData.policeStationHi,
+          villageWard: formData.villageWard,
+          villageWardHi: formData.villageWardHi,
+          state: formData.state,
+          stateHi: formData.stateHi,
+          documentTypeDetected: 'Citizen Application Profile Data',
+          confidence: 100
+        }}
+        documentName={`Application_${formData.applicationNumber}`}
+        language={language}
+      />
     </div>
   );
 };

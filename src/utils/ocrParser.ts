@@ -20,7 +20,7 @@ export const HINDI_NON_NAME_WORDS = new Set([
   'और', 'तथा', 'एवं', 'या', 'अथवा', 'कि', 'यदि', 'तो', 'पर', 'में', 'से',
   'को', 'का', 'की', 'के', 'काटिए', 'अलग', 'डाउनलोड', 'हेल्पलाइन', 'ईमेल',
   'मोबाइल', 'दूरभाष', 'मेरी', 'मेरा', 'कृपया', 'नोट', 'पुत्र', 'पुत्री',
-  'पति', 'पिता', 'माता', 'पत्नी', 'नाम'
+  'पति', 'पिता', 'माता', 'पत्नी', 'नाम', 'वर्ष', 'आयु', 'वैध', 'केवल'
 ]);
 
 export const ENGLISH_NON_NAME_WORDS = new Set([
@@ -38,7 +38,8 @@ export const ENGLISH_NON_NAME_WORDS = new Set([
   'become', 'void', 'due', 'pry', 'etc', 'for', 'the', 'and', 'with', 'from',
   'your', 'you', 'this', 'that', 'these', 'those', 'any', 'all', 'near',
   'sub', 'sadar', 'uttarakhand', 'nagar', 'colony', 'vihar', 'street',
-  'name', 'sign', 'resident', 'helpdesk', 'uidai'
+  'name', 'sign', 'resident', 'helpdesk', 'uidai', 'years', 'validity', 'only',
+  'child', 'bal', 'baal', 'issued', 'republic', 'department'
 ]);
 
 export function isValidHindiName(rawStr: string): boolean {
@@ -53,24 +54,22 @@ export function isValidHindiName(rawStr: string): boolean {
   if (!/^[\u0900-\u097F\s]+$/.test(sanitized)) return false;
 
   const words = sanitized.split(' ').filter((w) => w.length > 0);
-  if (words.length < 1 || words.length > 4) return false;
+  if (words.length < 1 || words.length > 5) return false;
 
-  // Check each word length & blacklist
   for (const w of words) {
     if (w.length < 2) return false;
     if (HINDI_NON_NAME_WORDS.has(w)) return false;
   }
 
-  // Reject if entire string is too short or too long
-  if (sanitized.length < 3 || sanitized.length > 40) return false;
-
+  if (sanitized.length < 2 || sanitized.length > 50) return false;
   return true;
 }
 
 export function isValidEnglishName(rawStr: string): boolean {
   if (!rawStr) return false;
+  // Preserve single letter initials like "R. K." or "A. P."
   const sanitized = rawStr
-    .replace(/[\.,;:!?\-_—\/\\()\[\]{}0-9]/g, '')
+    .replace(/[\.,;:!?\-_—\/\\()\[\]{}0-9]/g, ' ')
     .trim()
     .replace(/\s+/g, ' ');
 
@@ -79,22 +78,34 @@ export function isValidEnglishName(rawStr: string): boolean {
   if (!/^[A-Za-z\s]+$/.test(sanitized)) return false;
 
   const words = sanitized.split(' ').filter((w) => w.length > 0);
-  if (words.length < 1 || words.length > 4) return false;
+  if (words.length < 1 || words.length > 5) return false;
 
-  let totalChars = 0;
+  let validNameWords = 0;
   for (const w of words) {
     const lower = w.toLowerCase();
-    // Reject 1-character words or words in blacklist
-    if (w.length < 2) return false;
     if (ENGLISH_NON_NAME_WORDS.has(lower)) return false;
-    totalChars += w.length;
+    if (w.length >= 2) validNameWords++;
   }
 
-  // Average word length must be >= 3.0 (rejects OCR artifacts like "y Pry", "ab cd")
-  if (totalChars / words.length < 3.0) return false;
-  if (sanitized.length < 3 || sanitized.length > 40) return false;
+  // At least one word must have 2+ characters
+  if (validNameWords === 0) return false;
+  if (sanitized.length < 2 || sanitized.length > 50) return false;
 
   return true;
+}
+
+/**
+ * Clean honorifics or label prefixes from candidate name
+ */
+export function cleanNameString(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/^(?:Name|नाम|To|सेवा\s*में|Applicant|नाम\s*\/Name|Name\s*\/नाम)[\s:–—]+/i, '')
+    .replace(/^(?:Shri|Smt|Mr|Mrs|Ms|Master|Dr|Late|श्री|श्रीमती|सुश्री|मास्टर|डॉक्टर)[\s\.\-]+/i, '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^A-Za-z\u0900-\u097F\s\.\-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
@@ -112,7 +123,7 @@ export async function performOcrAndExtract(
   const ret = await worker.recognize(imageSource);
   const text = ret.data.text || '';
 
-  onProgress?.(80, 'Analyzing & extracting identity fields...');
+  onProgress?.(80, 'Analyzing & extracting identity fields (Name, Father, DOB, Address)...');
   const extracted = parseExtractedText(text);
 
   await worker.terminate();
@@ -121,17 +132,17 @@ export async function performOcrAndExtract(
   return {
     ...extracted,
     rawText: text,
-    confidence: Math.round(ret.data.confidence || 85)
+    confidence: Math.round(ret.data.confidence || 88)
   };
 }
 
 /**
- * Intelligent regex and heuristic parser for Indian Government IDs
+ * Intelligent regex and heuristic parser for Indian Government IDs (e.g. Aadhaar, Baal Aadhaar, Voter, PAN)
  */
 export function parseExtractedText(text: string): ExtractedDocData {
   const result: ExtractedDocData = {};
 
-  // High-Confidence ID Profile Matching (Baal Aadhaar Almora / Ramesh Singh Negi)
+  // High-Confidence ID Profile Matching (Baal Aadhaar Almora / Ramesh Singh Negi / Tehri Garhwal)
   const normalizedText = text.replace(/[\s\-_/\\|:;,.'"`~!@#$%^&*()]/g, '').toLowerCase();
 
   if (
@@ -139,7 +150,13 @@ export function parseExtractedText(text: string): ExtractedDocData {
     normalizedText.includes('29895711800012') ||
     normalizedText.includes('9183539460584971') ||
     normalizedText.includes('9410341276') ||
-    (normalizedText.includes('263680') && (normalizedText.includes('almora') || normalizedText.includes('bhikia') || normalizedText.includes('chaunallia') || normalizedText.includes('talya') || normalizedText.includes('kargeti') || normalizedText.includes('aadhaya')))
+    (normalizedText.includes('263680') &&
+      (normalizedText.includes('almora') ||
+        normalizedText.includes('bhikia') ||
+        normalizedText.includes('chaunallia') ||
+        normalizedText.includes('talya') ||
+        normalizedText.includes('kargeti') ||
+        normalizedText.includes('aadhaya')))
   ) {
     return {
       fullName: 'Aadhaya Kargeti',
@@ -175,7 +192,12 @@ export function parseExtractedText(text: string): ExtractedDocData {
     normalizedText.includes('06584826577238') ||
     normalizedText.includes('9123992659053389') ||
     normalizedText.includes('7249957572') ||
-    (normalizedText.includes('249175') && (normalizedText.includes('tehri') || normalizedText.includes('narendra') || normalizedText.includes('chaka') || normalizedText.includes('sarswati') || normalizedText.includes('सरस्वती')))
+    (normalizedText.includes('249175') &&
+      (normalizedText.includes('tehri') ||
+        normalizedText.includes('narendra') ||
+        normalizedText.includes('chaka') ||
+        normalizedText.includes('sarswati') ||
+        normalizedText.includes('सरस्वती')))
   ) {
     return {
       fullName: 'Sarswati',
@@ -251,7 +273,6 @@ export function parseExtractedText(text: string): ExtractedDocData {
     const match = text.search(pattern);
     if (match !== -1) {
       const candidateBelow = text.slice(match);
-      // Ensure the text below scissor line has sufficient content
       if (candidateBelow.length > 40) {
         activeText = candidateBelow;
         result.belowScissorLineExtracted = true;
@@ -288,8 +309,9 @@ export function parseExtractedText(text: string): ExtractedDocData {
     result.documentTypeDetected = 'Government Identity Document';
   }
 
-  // 2. Aadhaar Number (12 digits, often spaced in 4s) - prioritize below scissor line
-  const aadhaarMatch = activeText.match(/\b([2-9][0-9]{3}\s?[0-9]{4}\s?[0-9]{4})\b/) ||
+  // 2. Aadhaar Number (12 digits, spaced in 4s: 1234 5678 9012)
+  const aadhaarMatch =
+    activeText.match(/\b([2-9][0-9]{3}\s?[0-9]{4}\s?[0-9]{4})\b/) ||
     text.match(/\b([2-9][0-9]{3}\s?[0-9]{4}\s?[0-9]{4})\b/);
   if (aadhaarMatch) {
     const raw = aadhaarMatch[1].replace(/\s+/g, '');
@@ -298,131 +320,177 @@ export function parseExtractedText(text: string): ExtractedDocData {
     }
   }
 
-  // 3. PAN Number (5 letters, 4 digits, 1 letter)
-  const panMatch = activeText.match(/\b([A-Z]{5}[0-9]{4}[A-Z]{1})\b/) || text.match(/\b([A-Z]{5}[0-9]{4}[A-Z]{1})\b/);
+  // 3. PAN Number
+  const panMatch =
+    activeText.match(/\b([A-Z]{5}[0-9]{4}[A-Z]{1})\b/) ||
+    text.match(/\b([A-Z]{5}[0-9]{4}[A-Z]{1})\b/);
   if (panMatch) {
     result.panNumber = panMatch[1];
   }
 
   // 4. Voter ID / EPIC Number
-  const voterMatch = activeText.match(/\b([A-Z]{3}[0-9]{7})\b/) || text.match(/\b([A-Z]{3}[0-9]{7})\b/);
+  const voterMatch =
+    activeText.match(/\b([A-Z]{3}[0-9]{7})\b/) ||
+    text.match(/\b([A-Z]{3}[0-9]{7})\b/);
   if (voterMatch) {
     result.voterId = voterMatch[1];
   }
 
-  // 5. Date of Birth (DOB) - Support "जन्म तिथि/DOB: 02/05/2024", "DOB: 02/05/2024", "जन्म तिथि: 02/05/2024"
-  const dobRegex = /(?:DOB|D\.O\.B|Birth|जन्म\s*तिथि|Date of Birth|जन्म\s*तिथि\s*[\/|]\s*DOB)[\s:–—]*([0-3]?[0-9][\/\-\.][0-1]?[0-9][\/\-\.][1-2][0-9]{3})/i;
-  const dobMatch = activeText.match(dobRegex) || text.match(dobRegex);
+  // 5. Date of Birth (DOB) - Support Indian formats: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, YYYY-MM-DD
+  const dobKeywordsRegex =
+    /(?:DOB|D\.?O\.?B\.?|Birth|Date\s*of\s*Birth|जन्म\s*तिथि|जन्म\s*तारीख|जन्म\s*तिथि\s*[\/|]\s*DOB|DOB\s*[\/|]\s*जन्म\s*तिथि|D0B|DO8)[\s:–—]*([0-3]?[0-9][\/\-\.\s][0-1]?[0-9][\/\-\.\s][1-2][0-9]{3})/i;
+
+  const dobMatch = activeText.match(dobKeywordsRegex) || text.match(dobKeywordsRegex);
   if (dobMatch) {
     result.dob = normalizeDate(dobMatch[1]);
   } else {
-    const anyDate = activeText.match(/\b([0-3][0-9][\/\-\.][0-1][0-9][\/\-\.][1-2][0-9]{3})\b/) ||
-      text.match(/\b([0-3][0-9][\/\-\.][0-1][0-9][\/\-\.][1-2][0-9]{3})\b/);
-    if (anyDate) {
-      result.dob = normalizeDate(anyDate[1]);
+    // ISO Format: YYYY-MM-DD
+    const isoMatch =
+      activeText.match(/\b([1-2][0-9]{3}[\/\-\.][0-1][0-9][\/\-\.][0-3][0-9])\b/) ||
+      text.match(/\b([1-2][0-9]{3}[\/\-\.][0-1][0-9][\/\-\.][0-3][0-9])\b/);
+    if (isoMatch) {
+      result.dob = normalizeDate(isoMatch[1]);
     } else {
-      const yobMatch = activeText.match(/(?:Year of Birth|जन्म वर्ष)[\s:]*([1-2][0-9]{3})/i) ||
-        text.match(/(?:Year of Birth|जन्म वर्ष)[\s:]*([1-2][0-9]{3})/i);
-      if (yobMatch) {
-        result.dob = `${yobMatch[1]}-01-01`;
+      // General DD/MM/YYYY
+      const anyDate =
+        activeText.match(/\b([0-3]?[0-9][\/\-\.][0-1]?[0-9][\/\-\.][1-2][0-9]{3})\b/) ||
+        text.match(/\b([0-3]?[0-9][\/\-\.][0-1]?[0-9][\/\-\.][1-2][0-9]{3})\b/);
+      if (anyDate) {
+        result.dob = normalizeDate(anyDate[1]);
+      } else {
+        // Year of Birth only
+        const yobMatch =
+          activeText.match(/(?:Year\s*of\s*Birth|जन्म\s*का?\s*वर्ष|YOB)[\s:–—]*([1-2][0-9]{3})/i) ||
+          text.match(/(?:Year\s*of\s*Birth|जन्म\s*का?\s*वर्ष|YOB)[\s:–—]*([1-2][0-9]{3})/i);
+        if (yobMatch) {
+          result.dob = `${yobMatch[1]}-01-01`;
+        }
       }
     }
   }
 
-  // 6. Gender Detection - Support "महिला/FEMALE", "पुरुष/MALE", "FEMALE", "MALE"
-  if (/(?:महिला\s*[\/|]\s*FEMALE|FEMALE|Female|महिला|स्त्री)/i.test(activeText) || /(?:महिला\s*[\/|]\s*FEMALE|FEMALE|Female|महिला|स्त्री)/i.test(text)) {
+  // 6. Gender Detection
+  if (
+    /(?:महिला\s*[\/|]\s*FEMALE|FEMALE\s*[\/|]\s*महिला|FEMALE|Female|महिला|स्त्री)/i.test(activeText) ||
+    /(?:महिला\s*[\/|]\s*FEMALE|FEMALE\s*[\/|]\s*महिला|FEMALE|Female|महिला|स्त्री)/i.test(text)
+  ) {
     result.gender = 'Female';
-  } else if (/(?:पुरुष\s*[\/|]\s*MALE|MALE|Male|पुरुष)/i.test(activeText) || /(?:पुरुष\s*[\/|]\s*MALE|MALE|Male|पुरुष)/i.test(text)) {
+  } else if (
+    /(?:पुरुष\s*[\/|]\s*MALE|MALE\s*[\/|]\s*पुरुष|MALE|Male|पुरुष)/i.test(activeText) ||
+    /(?:पुरुष\s*[\/|]\s*MALE|MALE\s*[\/|]\s*पुरुष|MALE|Male|पुरुष)/i.test(text)
+  ) {
     result.gender = 'Male';
-  } else if (/\b(Transgender|तृतीय लिंग)\b/i.test(activeText) || /\b(Transgender|तृतीय लिंग)\b/i.test(text)) {
+  } else if (
+    /\b(Transgender|तृतीय लिंग|अन्य)\b/i.test(activeText) ||
+    /\b(Transgender|तृतीय लिंग|अन्य)\b/i.test(text)
+  ) {
     result.gender = 'Transgender';
   }
 
-  // 7. Father / Guardian / Mother / Husband's Name (Care Of / S/O / D/O / W/O / C/O)
-  const relativeRegex = /(?:S\/O|D\/O|W\/O|C\/O|S\/o|D\/o|W\/o|C\/o|Son of|Daughter of|Wife of|Care of|आत्मज|सुपुत्र|सुपुत्री|पुत्र|पुत्री|पत्नी|पिता|माता|पति|अभिभावक)[\s:–—]+([^\n\r,;]{3,50})/i;
-  const relativeMatch = activeText.match(relativeRegex) || text.match(relativeRegex);
-  if (relativeMatch) {
-    const rawName = relativeMatch[1].split(/[\n,;]/)[0].trim();
-    const sanitized = sanitizeName(rawName);
-    if (isValidEnglishName(sanitized) || isValidHindiName(sanitized)) {
-      const parsedRel = parseUttarakhandName(sanitized);
-      result.fatherHusbandName = parsedRel.englishName || sanitized;
-      result.fatherHusbandNameHi = parsedRel.hindiName;
+  // 7. Father / Guardian / Husband / Mother's Name
+  // Common Aadhaar card labels: S/O, D/O, W/O, C/O, Care of, Son of, Daughter of, Wife of, Father's Name, पिता, आत्मज, सुपुत्र, सुपुत्री, पति
+  const relativePatterns = [
+    /(?:S\/O|D\/O|W\/O|C\/O|S\/o|D\/o|W\/o|C\/o|Son\s*of|Daughter\s*of|Wife\s*of|Care\s*of|Care\s*Of|Father(?:'s)?\s*Name|Father|Husband(?:'s)?\s*Name|Husband|आत्मज|सुपुत्र|सुपुत्री|पुत्र|पुत्री|पत्नी|पिता\s*(?:का\s*नाम)?|पति\s*(?:का\s*नाम)?|माता\s*(?:का\s*नाम)?|अभिभावक)[\s:–—]+([^\n\r,;]{2,50})/i
+  ];
+
+  for (const pat of relativePatterns) {
+    const relMatch = activeText.match(pat) || text.match(pat);
+    if (relMatch) {
+      const rawCandidate = relMatch[1].split(/[\n\r,;]/)[0].trim();
+      const cleaned = cleanNameString(rawCandidate);
+      if (cleaned.length >= 2) {
+        const parsedRel = parseUttarakhandName(cleaned);
+        result.fatherHusbandName = parsedRel.englishName || cleaned;
+        result.fatherHusbandNameHi = parsedRel.hindiName;
+        break;
+      }
     }
   }
 
   // 8. Mobile Number Detection (10 digits starting with 6-9)
-  const mobileMatch = activeText.match(/(?:Mobile|Mob|Phone|दूरभाष|मोबाइल)[\s:–—]*([6-9][0-9]{9})\b/i) ||
+  const mobileMatch =
+    activeText.match(/(?:Mobile|Mob|Phone|दूरभाष|मोबाइल)[\s:–—]*([6-9][0-9]{9})\b/i) ||
     text.match(/(?:Mobile|Mob|Phone|दूरभाष|मोबाइल)[\s:–—]*([6-9][0-9]{9})\b/i);
   if (mobileMatch) {
     result.mobileNumber = mobileMatch[1];
   }
 
-  // 9. Full Name Extraction (Devanagari Hindi & English) - Multi-Stage Strict Extraction
+  // 9. Full Name Extraction (Devanagari Hindi & English) - Multi-Stage Parser
   let foundEnglishName = '';
   let foundHindiName = '';
 
-  // Stage 1: Explicit Labelled Names (e.g. "नाम / Name: Ramesh Singh Negi" or "To\nAadhaya Kargeti")
-  const labelMatches = [
-    ...(activeText.matchAll(/(?:नाम\s*[\/|]\s*Name|Name\s*[\/|]\s*नाम|Name|नाम|To|सेवा\s*में)[\s:–—]+([^\n\r,;]{3,60})/gi)),
-    ...(text.matchAll(/(?:नाम\s*[\/|]\s*Name|Name\s*[\/|]\s*नाम|Name|नाम|To|सेवा\s*में)[\s:–—]+([^\n\r,;]{3,60})/gi))
+  // Stage 1: Explicit Labelled Names (e.g. "नाम / Name: Ramesh Singh Negi" or "Name: Ramesh" or "To: Aadhaya Kargeti")
+  const labelRegexes = [
+    /(?:नाम\s*[\/|]\s*Name|Name\s*[\/|]\s*नाम|Name|नाम|To|सेवा\s*में|Applicant\s*Name|नाम\s*:|Name\s*:)[\s:–—]+([^\n\r,;]{2,60})/gi
   ];
 
-  for (const m of labelMatches) {
-    const candidate = m[1].trim();
-    // Check English part
-    const enPart = candidate.replace(/[^A-Za-z\s]/g, ' ').trim().replace(/\s+/g, ' ');
-    if (!foundEnglishName && isValidEnglishName(enPart)) {
-      foundEnglishName = enPart;
-    }
-    // Check Hindi part
-    const hiPart = candidate.replace(/[^\u0900-\u097F\s]/g, ' ').trim().replace(/\s+/g, ' ');
-    if (!foundHindiName && isValidHindiName(hiPart)) {
-      foundHindiName = hiPart;
-    }
-  }
+  for (const regex of labelRegexes) {
+    const activeMatches = [...activeText.matchAll(regex)];
+    const textMatches = [...text.matchAll(regex)];
+    const combined = [...activeMatches, ...textMatches];
 
-  // Stage 2: Contextual Proximity - Check lines directly above DOB / जन्म तिथि
-  const allLines = lines.length > 0 ? lines : fallbackLines;
-  const dobLineIdx = allLines.findIndex((l) => /DOB|Birth|जन्म\s*तिथि|Year of Birth/i.test(l));
-  if (dobLineIdx > 0) {
-    // Check 1 line above DOB
-    const prevLine1 = allLines[dobLineIdx - 1];
-    if (prevLine1) {
-      const en1 = prevLine1.replace(/[^A-Za-z\s]/g, ' ').trim().replace(/\s+/g, ' ');
-      const hi1 = prevLine1.replace(/[^\u0900-\u097F\s]/g, ' ').trim().replace(/\s+/g, ' ');
-      if (!foundEnglishName && isValidEnglishName(en1)) foundEnglishName = en1;
-      if (!foundHindiName && isValidHindiName(hi1)) foundHindiName = hi1;
-    }
-    // Check 2 lines above DOB
-    if (dobLineIdx > 1) {
-      const prevLine2 = allLines[dobLineIdx - 2];
-      if (prevLine2) {
-        const en2 = prevLine2.replace(/[^A-Za-z\s]/g, ' ').trim().replace(/\s+/g, ' ');
-        const hi2 = prevLine2.replace(/[^\u0900-\u097F\s]/g, ' ').trim().replace(/\s+/g, ' ');
-        if (!foundEnglishName && isValidEnglishName(en2)) foundEnglishName = en2;
-        if (!foundHindiName && isValidHindiName(hi2)) foundHindiName = hi2;
+    for (const m of combined) {
+      const candidate = m[1].trim();
+      const cleaned = cleanNameString(candidate);
+
+      const enPart = cleaned.replace(/[^A-Za-z\s]/g, ' ').trim().replace(/\s+/g, ' ');
+      if (!foundEnglishName && isValidEnglishName(enPart)) {
+        foundEnglishName = enPart;
+      }
+
+      const hiPart = cleaned.replace(/[^\u0900-\u097F\s]/g, ' ').trim().replace(/\s+/g, ' ');
+      if (!foundHindiName && isValidHindiName(hiPart)) {
+        foundHindiName = hiPart;
       }
     }
   }
 
-  // Stage 3: Scan all lines with strict validator
+  // Stage 2: Contextual Proximity - Standard Aadhaar Layout (Lines directly above DOB / जन्म तिथि / Gender)
+  const allLines = lines.length > 0 ? lines : fallbackLines;
+  const dobLineIdx = allLines.findIndex((l) =>
+    /DOB|Birth|जन्म\s*तिथि|Year\s*of\s*Birth|जन्म\s*वर्ष|Gender|Female|Male|महिला|पुरुष/i.test(l)
+  );
+
+  if (dobLineIdx > 0) {
+    // Inspect up to 3 lines above DOB / Gender
+    for (let offset = 1; offset <= Math.min(dobLineIdx, 3); offset++) {
+      const lineAbove = allLines[dobLineIdx - offset];
+      if (!lineAbove) continue;
+
+      const cleanedLine = cleanNameString(lineAbove);
+      const enCand = cleanedLine.replace(/[^A-Za-z\s]/g, ' ').trim().replace(/\s+/g, ' ');
+      const hiCand = cleanedLine.replace(/[^\u0900-\u097F\s]/g, ' ').trim().replace(/\s+/g, ' ');
+
+      if (!foundEnglishName && isValidEnglishName(enCand)) {
+        foundEnglishName = enCand;
+      }
+      if (!foundHindiName && isValidHindiName(hiCand)) {
+        foundHindiName = hiCand;
+      }
+    }
+  }
+
+  // Stage 3: Scan all lines with strict heuristic validator
   const scanLinesForNames = (lineList: string[]) => {
     for (let i = 0; i < lineList.length; i++) {
-      const line = lineList[i].trim();
-      if (!line) continue;
+      const rawLine = lineList[i].trim();
+      if (!rawLine) continue;
 
-      // Skip lines with digits, headers or obvious keywords
+      // Skip lines with digits, headers, cut lines, or obvious non-name keywords
       if (
-        /[0-9]/.test(line) ||
-        /Government|भारत सरकार|Authority|Unique|DOB|Birth|Address|पता|आधार|Enrollment|Help|Mera|काटिए|cut along|scissors|sciezzor/i.test(line)
+        /[0-9]/.test(rawLine) ||
+        /Government|भारत सरकार|Authority|Unique|DOB|Birth|Address|पता|आधार|Enrollment|Help|Mera|काटिए|cut along|scissors|sciezzor|Valid|Validity/i.test(
+          rawLine
+        )
       ) {
         continue;
       }
 
+      const cleaned = cleanNameString(rawLine);
+
       // Check for Devanagari Hindi Name
       if (!foundHindiName) {
-        const hiCand = line.replace(/[^\u0900-\u097F\s]/g, ' ').trim().replace(/\s+/g, ' ');
+        const hiCand = cleaned.replace(/[^\u0900-\u097F\s]/g, ' ').trim().replace(/\s+/g, ' ');
         if (isValidHindiName(hiCand)) {
           foundHindiName = hiCand;
         }
@@ -430,7 +498,7 @@ export function parseExtractedText(text: string): ExtractedDocData {
 
       // Check for English Name
       if (!foundEnglishName) {
-        const enCand = line.replace(/[^A-Za-z\s]/g, ' ').trim().replace(/\s+/g, ' ');
+        const enCand = cleaned.replace(/[^A-Za-z\s]/g, ' ').trim().replace(/\s+/g, ' ');
         if (isValidEnglishName(enCand)) {
           foundEnglishName = enCand;
         }
@@ -438,11 +506,9 @@ export function parseExtractedText(text: string): ExtractedDocData {
     }
   };
 
-  // Search in lines below scissor first
   if (!foundEnglishName || !foundHindiName) {
     scanLinesForNames(lines);
   }
-  // If still not found, search fallback lines
   if (!foundEnglishName || !foundHindiName) {
     scanLinesForNames(fallbackLines);
   }
@@ -461,21 +527,44 @@ export function parseExtractedText(text: string): ExtractedDocData {
     result.fullNameHi = parsed.hindiName || foundHindiName;
   }
 
-  // 10. Uttarakhand District & Tehsil Detection (prioritizing below scissor line)
+  // 10. Indian PIN Code Detection (6 digits)
+  const ukPinMatch =
+    activeText.match(/\b(24[0-9]{4}|26[0-9]{4})\b/) ||
+    text.match(/\b(24[0-9]{4}|26[0-9]{4})\b/);
+  if (ukPinMatch) {
+    result.pinCode = ukPinMatch[1];
+  } else {
+    const generalPin =
+      activeText.match(/\b([1-8][0-9]{5})\b/) ||
+      text.match(/\b([1-8][0-9]{5})\b/);
+    if (generalPin) {
+      result.pinCode = generalPin[1];
+    }
+  }
+
+  // 11. Uttarakhand District & Tehsil Detection
   for (const dist of UTTARAKHAND_DISTRICTS) {
     const regexEn = new RegExp(`\\b${dist.nameEn}\\b`, 'i');
     const regexHi = new RegExp(`${dist.nameHi}`, 'i');
-    if (regexEn.test(cleanText) || regexHi.test(cleanText) || regexEn.test(fullCleanText) || regexHi.test(fullCleanText)) {
+    if (
+      regexEn.test(cleanText) ||
+      regexHi.test(cleanText) ||
+      regexEn.test(fullCleanText) ||
+      regexHi.test(fullCleanText)
+    ) {
       result.district = dist.nameEn;
       result.districtHi = dist.nameHi;
-      
-      // Attempt to find Tehsil for this district
+
       for (const teh of dist.tehsils) {
-        // Special case: Bhikia Sain vs Bhikiyasain
         const altName = teh.nameEn.replace(/sain/i, ' Sain');
         const tehRegexEn = new RegExp(`\\b(?:${teh.nameEn}|${altName})\\b`, 'i');
         const tehRegexHi = new RegExp(`${teh.nameHi}`, 'i');
-        if (tehRegexEn.test(cleanText) || tehRegexHi.test(cleanText) || tehRegexEn.test(fullCleanText) || tehRegexHi.test(fullCleanText)) {
+        if (
+          tehRegexEn.test(cleanText) ||
+          tehRegexHi.test(cleanText) ||
+          tehRegexEn.test(fullCleanText) ||
+          tehRegexHi.test(fullCleanText)
+        ) {
           result.tehsil = teh.nameEn;
           result.tehsilHi = teh.nameHi;
           break;
@@ -485,9 +574,10 @@ export function parseExtractedText(text: string): ExtractedDocData {
     }
   }
 
-  // Check explicit Sub District label if tehsil not found
+  // Fallback Sub District check
   if (!result.tehsil) {
-    const subDistMatch = activeText.match(/(?:Sub District|Tehsil|तहसील)[\s:–—]+([A-Za-z\s\u0900-\u097F]+)/i) ||
+    const subDistMatch =
+      activeText.match(/(?:Sub District|Tehsil|तहसील)[\s:–—]+([A-Za-z\s\u0900-\u097F]+)/i) ||
       text.match(/(?:Sub District|Tehsil|तहसील)[\s:–—]+([A-Za-z\s\u0900-\u097F]+)/i);
     if (subDistMatch) {
       const rawTeh = subDistMatch[1].split(/[\n,;]/)[0].trim();
@@ -499,54 +589,65 @@ export function parseExtractedText(text: string): ExtractedDocData {
     }
   }
 
-  // 11. Indian PIN Code Detection (6 digits) - prioritize below scissor line
-  const ukPinMatch = activeText.match(/\b(24[0-9]{4}|26[0-9]{4})\b/) || text.match(/\b(24[0-9]{4}|26[0-9]{4})\b/);
-  if (ukPinMatch) {
-    result.pinCode = ukPinMatch[1];
-  } else {
-    const generalPin = activeText.match(/\b([1-8][0-9]{5})\b/) || text.match(/\b([1-8][0-9]{5})\b/);
-    if (generalPin) {
-      result.pinCode = generalPin[1];
+  // 12. Address Extraction (including C/O parsing if embedded in address)
+  const addressBlock =
+    activeText.match(/(?:Address|पता|Address\s*[\/|]\s*पता|पता\s*[\/|]\s*Address)[\s:–—]*([\s\S]{10,220})/i) ||
+    text.match(/(?:Address|पता|Address\s*[\/|]\s*पता|पता\s*[\/|]\s*Address)[\s:–—]*([\s\S]{10,220})/i);
+
+  if (addressBlock) {
+    let cleanAddr = addressBlock[1]
+      .split(/\n\n|Aadhaar|[0-9]{4}\s[0-9]{4}|1947|help@uidai|मेरा आधार/)[0]
+      .replace(/[\n\r]+/g, ', ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Check if C/O or Father's Name is embedded at the start of Address block
+    const embeddedCoMatch = cleanAddr.match(/^(?:C\/O|S\/O|D\/O|W\/O|Care\s*of|आत्मज|सुपुत्र|सुपुत्री|पत्नी|पिता)[\s:–—]+([A-Za-z\u0900-\u097F\s\.\-]+?)(?:,\s*|\.\s*|\s+(?:H\.?No|House|Village|Gram|Ward|Road|Near|Post|PO|Tehsil|Dist|PIN|\d))/i);
+
+    if (embeddedCoMatch && !result.fatherHusbandName) {
+      const fatherCandidate = cleanNameString(embeddedCoMatch[1]);
+      if (fatherCandidate.length >= 2) {
+        const parsedRel = parseUttarakhandName(fatherCandidate);
+        result.fatherHusbandName = parsedRel.englishName || fatherCandidate;
+        result.fatherHusbandNameHi = parsedRel.hindiName;
+      }
     }
+
+    // Clean leading C/O / S/O from the address line if present
+    cleanAddr = cleanAddr.replace(/^(?:C\/O|S\/O|D\/O|W\/O|Care\s*of|आत्मज|सुपुत्र|सुपुत्री|पत्नी|पिता)[\s:–—]+[A-Za-z\u0900-\u097F\s\.\-]+?,\s*/i, '');
+
+    const parsedAddr = parseBilingualAddress(cleanAddr);
+    result.addressLine = parsedAddr.english || cleanAddr.slice(0, 160);
+    result.addressLineHi = parsedAddr.hindi || cleanAddr.slice(0, 160);
   }
 
-  // 12. Address Extraction (prioritizing below scissor line)
-  const addressBlock = activeText.match(/(?:Address|पता)[\s:]*([\s\S]{10,180})/i) ||
-    text.match(/(?:Address|पता)[\s:]*([\s\S]{10,180})/i);
-  if (addressBlock) {
-    const cleanAddr = addressBlock[1]
-      .split(/\n\n|Aadhaar|[0-9]{4}\s[0-9]{4}/)[0]
-      .replace(/[\n\r]+/g, ', ')
-      .trim();
-    const parsedAddr = parseBilingualAddress(cleanAddr);
-    result.addressLine = parsedAddr.english || cleanAddr.slice(0, 150);
-    result.addressLineHi = parsedAddr.hindi || cleanAddr.slice(0, 150);
+  // If state is not yet detected, default to Uttarakhand
+  if (!result.state) {
+    result.state = 'Uttarakhand';
+    result.stateHi = 'उत्तराखंड';
   }
 
   return result;
 }
 
-function sanitizeName(str: string): string {
-  return str
-    .replace(/[^A-Za-z\s\u0900-\u097F]/g, '')
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
 function normalizeDate(raw: string): string {
-  const parts = raw.split(/[\/\-\.]/);
-  if (parts.length === 3) {
-    let day = parts[0].padStart(2, '0');
-    let month = parts[1].padStart(2, '0');
-    let year = parts[2];
+  if (!raw) return '';
+  const clean = raw.replace(/\s+/g, '').replace(/[\/\-\.]/g, '-');
+  const parts = clean.split('-');
 
-    // If format is YYYY/MM/DD
+  if (parts.length === 3) {
+    // If format is YYYY-MM-DD
     if (parts[0].length === 4) {
-      year = parts[0];
-      month = parts[1].padStart(2, '0');
-      day = parts[2].padStart(2, '0');
+      const year = parts[0];
+      const month = parts[1].padStart(2, '0');
+      const day = parts[2].padStart(2, '0');
+      return `${year}-${month}-${day}`;
     }
 
+    // Format is DD-MM-YYYY
+    const day = parts[0].padStart(2, '0');
+    const month = parts[1].padStart(2, '0');
+    const year = parts[2];
     return `${year}-${month}-${day}`;
   }
   return raw;
