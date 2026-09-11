@@ -73,12 +73,48 @@ An AI-driven, citizen-centric web application engineered to simplify and acceler
 | **Frontend Framework** | [React 18](https://reactjs.org/) + [TypeScript](https://www.typescriptlang.org/) |
 | **Build Tool** | [Vite 5](https://vitejs.dev/) |
 | **Styling & UI** | [Tailwind CSS 3](https://tailwindcss.com/) & [Lucide React](https://lucide.dev/) |
+| **Primary Database** | **PostgreSQL 16+** (Relational tables + `JSONB` + `pg_trgm` bilingual indexing) |
+| **In-Memory Cache & OTP** | **Redis 7** (High-speed session state, OTP tokens & rate limiting) |
+| **Document/Blob Store** | **MinIO / S3** (High-throughput portal-compliant document & photo storage) |
 | **AI OCR & Vision** | [Tesseract.js](https://tesseract.projectnaptha.com/) (WebAssembly OCR) |
 | **PDF Processing & Render** | [PDF.js (pdfjs-dist)](https://mozilla.github.io/pdf.js/) & [jsPDF](https://github.com/parallax/jsPDF) |
 | **Image Compression** | [browser-image-compression](https://www.npmjs.com/package/browser-image-compression) & HTML5 Canvas |
 | **Speech Engine** | Web Speech API (`SpeechRecognition` & `SpeechSynthesis`) |
 | **Phonetics Engine** | Custom Devanagari <-> English Bidirectional Phonetic Transliteration |
-| **Containerization** | [Docker](https://www.docker.com/) & [Nginx Alpine](https://nginx.org/) (Multi-stage build) |
+| **Containerization** | [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/) |
+
+---
+
+## 🗄️ Database & Storage Architecture
+
+The application adopts a **high-performance hybrid persistence model**:
+
+```
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │                         Web Client (React / Vite)                      │
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                 ┌───────────────────┼────────────────────┐
+                 ▼                   ▼                    ▼
+       ┌───────────────────┐ ┌───────────────┐ ┌────────────────────┐
+       │   PostgreSQL 16   │ │    Redis 7    │ │    MinIO / S3      │
+       │  (Relational Core │ │ (OTP, Session │ │  (Portal Uploads   │
+       │   + JSONB + GIN)  │ │   & Rate-Lim) │ │   <200KB / <50KB)  │
+       └───────────────────┘ └───────────────┘ └────────────────────┘
+```
+
+1. **PostgreSQL 16 (`db/init.sql`)**:
+   - `citizens`: Master table for verified primary citizen identities, hashed Aadhaar, contacts, and socio-economic attributes.
+   - `family_members`: Relational table managing family trees (`Spouse`, `Son`, `Daughter`, `Father`, `Mother`) with cascading integrity.
+   - `service_applications`: Tracks certificate issuance workflows (`SUBMITTED` -> `UNDER_VERIFICATION` -> `TEHSILDAR_APPROVED` -> `ISSUED`) with preserved JSONB form snapshots.
+   - `application_documents`: Metadata pointers to compressed files in object storage, plus OCR confidence scores.
+   - `audit_logs`: Immutable audit logging for e-KYC consent, data exchange exports, and administrative actions.
+2. **Redis 7**:
+   - Handles rapid 6-digit OTP verification, temporary speech recognition buffer sessions, and caching of district/tehsil hierarchical lookups.
+3. **MinIO / S3 Storage**:
+   - Offloads heavy binary uploads (passport photos <50KB, identity proofs <200KB) to keep database I/O minimal and performant.
+
+---
 
 ---
 
@@ -88,9 +124,9 @@ An AI-driven, citizen-centric web application engineered to simplify and acceler
 
 - **Node.js**: v18.0.0 or higher
 - **npm** / **yarn** / **pnpm**
-- **Docker & Docker Compose** *(optional, for containerized deployment)*
+- **Docker & Docker Compose** (for running the full PostgreSQL + Redis + MinIO stack)
 
-### Local Development Setup
+### Local Frontend Development
 
 1. **Clone the repository:**
    ```bash
@@ -116,42 +152,73 @@ An AI-driven, citizen-centric web application engineered to simplify and acceler
 
 ---
 
-## 🐳 Docker Deployment
+## 🐳 Full Stack Docker Deployment
 
-### 1. Production Mode with Docker Compose (Recommended)
+The application includes an orchestrator setup ([`docker-compose.yml`](file:///Users/rssingh/myprojects/voice-form-fillup/docker-compose.yml)) running the complete production-grade ecosystem:
 
-Run the production container built with multi-stage Node.js + Nginx with Gzip compression and security headers:
+### Service Topology & Ports
+
+| Service | Image | Internal Port | Host Port | Purpose | Default Credentials |
+|---|---|---|---|---|---|
+| **`voice-form-fillup`** | Custom Multi-Stage Nginx | 80 | **8080** | Production React App | — |
+| **`postgres`** | `postgres:16-alpine` | 5432 | **5432** | Primary Database + JSONB | User: `edistrict_admin` / Pass: `edistrict_secure_pass_2026` |
+| **`redis`** | `redis:7-alpine` | 6379 | **6379** | OTP & Session Cache | Pass: `redis_secure_pass_2026` |
+| **`minio`** (API) | `minio/minio:latest` | 9000 | **9000** | S3-Compatible Uploads | User: `minio_admin` / Pass: `minio_secure_pass_2026` |
+| **`minio`** (Console) | `minio/minio:latest` | 9001 | **9001** | MinIO Web Dashboard | User: `minio_admin` / Pass: `minio_secure_pass_2026` |
+
+### 1. Launch the Complete Ecosystem
 
 ```bash
-# Build and start the container
+# 1. Copy environment template
+cp .env.example .env
+
+# 2. Build and start all services in detached mode
 docker compose up --build -d
 
-# View logs
-docker compose logs -f
+# 3. View running container status & health checks
+docker compose ps
 
-# Stop the container
-docker compose down
+# 4. Stream real-time logs
+docker compose logs -f
 ```
 
-Access the application at [http://localhost:8080](http://localhost:8080).
+* **Web Portal**: [http://localhost:8080](http://localhost:8080)
+* **MinIO Object Store Dashboard**: [http://localhost:9001](http://localhost:9001)
+* **PostgreSQL Database Connection**: `postgresql://edistrict_admin:edistrict_secure_pass_2026@localhost:5432/uk_edistrict_db`
 
-### 2. Development Mode with Hot Reloading
+### 2. Development Mode with Hot Reloading (HMR)
 
 ```bash
 docker compose --profile dev up voice-form-dev
 ```
+Access the HMR dev server at [http://localhost:5173](http://localhost:5173).
 
-Access the development server at [http://localhost:5173](http://localhost:5173).
-
-### 3. Standalone Docker Build
+### 3. Stopping Services & Cleanup
 
 ```bash
-# Build image
-docker build -t voice-form-fillup:latest .
+# Stop containers without losing database data
+docker compose down
 
-# Run container
-docker run -d -p 8080:80 --name voice-form-app voice-form-fillup:latest
+# Stop containers and wipe volumes (Fresh reset)
+docker compose down -v
 ```
+
+---
+
+## ⚙️ Environment Configuration (`.env.example`)
+
+| Variable | Description | Default |
+|---|---|---|
+| `DB_NAME` | PostgreSQL database name | `uk_edistrict_db` |
+| `DB_USER` | Database superuser | `edistrict_admin` |
+| `DB_PASSWORD` | Database password | `edistrict_secure_pass_2026` |
+| `DATABASE_URL` | Full PostgreSQL connection URI | `postgresql://edistrict_admin:edistrict_secure_pass_2026@postgres:5432/uk_edistrict_db` |
+| `REDIS_PASSWORD` | Redis authentication password | `redis_secure_pass_2026` |
+| `REDIS_URL` | Redis connection URI | `redis://:redis_secure_pass_2026@redis:6379/0` |
+| `MINIO_ROOT_USER` | MinIO root access key | `minio_admin` |
+| `MINIO_ROOT_PASSWORD` | MinIO root secret key | `minio_secure_pass_2026` |
+| `PORT` | Production web application port | `8080` |
+| `DEV_PORT` | Vite hot-reload dev port | `5173` |
 
 ---
 
@@ -160,9 +227,11 @@ docker run -d -p 8080:80 --name voice-form-app voice-form-fillup:latest
 ```plaintext
 voice-form-fillup/
 ├── .github/                  # CI/CD Workflows
-├── public/                   # Static public assets
+├── db/                       # Database Initialization & Schemas
+│   └── init.sql              # PostgreSQL DDL, Trigram & GIN indexes, and Seed Data
+├── public/                   # Static public assets (trained OCR data, emblems)
 ├── src/
-│   ├── assets/               # Local images, emblems, and icons
+│   ├── assets/               # Local images, seals, and UI assets
 │   ├── components/           # Modular UI Components
 │   │   ├── AccessibilityToolbar.tsx    # Text sizing, high-contrast & TTS
 │   │   ├── ApplicationPreviewModal.tsx # Printable PDF preview & export
@@ -177,19 +246,23 @@ voice-form-fillup/
 │   │   └── VoiceFloatingAssistant.tsx  # Floating interactive voice widget
 │   ├── data/
 │   │   └── uttarakhandData.ts          # 13 Districts, Tehsils & Blocks database
-│   ├── types/               # TypeScript interfaces and type definitions
+│   ├── types/                # TypeScript interfaces and type definitions
 │   ├── utils/
 │   │   ├── aadhaarUtils.ts             # Aadhaar format & masking utilities
+│   │   ├── authService.ts              # Citizen Auth & OTP validation service
+│   │   ├── citizenStorage.ts           # Centralized profile & state exchange store
 │   │   ├── imageCompressor.ts          # Client-side smart image compression (<200KB)
+│   │   ├── noiseShieldProcessor.ts     # Audio noise cancellation DSP filter
 │   │   ├── ocrParser.ts                # Advanced regex & heuristic Indian ID parser
 │   │   ├── pdfProcessor.ts             # PDF.js digital text extraction & renderer
 │   │   ├── pincodeLookup.ts            # Indian Postal PIN code database & API lookup
 │   │   ├── uttarakhandPhonetics.ts     # Bilingual phonetic transliteration engine
-│   │   └── voiceAssistant.ts           # Web Speech API wrapper & noise shield
+│   │   └── voiceAssistant.ts           # Web Speech API wrapper & voice engine
 │   ├── App.tsx               # Primary application orchestrator
 │   ├── index.css             # Tailwind CSS tokens & theme styling
 │   └── main.tsx              # React DOM entry point
-├── docker-compose.yml        # Docker Compose definition
+├── .env.example              # Environment variables template
+├── docker-compose.yml        # Docker Compose (Postgres, Redis, MinIO, App)
 ├── Dockerfile                # Multi-stage optimized Nginx Dockerfile
 ├── nginx.conf                # Nginx production configuration
 ├── package.json              # Project dependencies and scripts
