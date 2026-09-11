@@ -154,7 +154,77 @@ export interface CitizenFormData {
   documents: UploadedDocument[];
 
   // Field metadata (for highlighting fields filled via OCR or Voice or PIN code)
-  fieldSources?: Record<string, 'manual' | 'ocr' | 'voice' | 'pincode'>;
+  fieldSources?: Record<string, 'manual' | 'ocr' | 'voice' | 'pincode' | 'uidai' | 'family_profile'>;
+  isMobileVerified?: boolean;
+  isAadhaarVerified?: boolean;
+  appliedForMemberId?: string; // 'self' or family member ID
+}
+
+export type FamilyRelation = 
+  | 'Spouse' 
+  | 'Son' 
+  | 'Daughter' 
+  | 'Father' 
+  | 'Mother' 
+  | 'Brother' 
+  | 'Sister' 
+  | 'Guardian' 
+  | 'Dependent';
+
+export interface FamilyMember {
+  id: string;
+  relation: FamilyRelation;
+  relationHi?: string;
+  fullName: string;
+  fullNameHi: string;
+  gender: 'Male' | 'Female' | 'Transgender';
+  dob: string;
+  aadhaarNumber?: string;
+  isAadhaarVerified?: boolean;
+  mobileNumber?: string;
+  isMobileVerified?: boolean;
+  casteCategory?: string;
+  occupation?: string;
+  annualIncome?: string;
+  applicantPhotoUrl?: string;
+}
+
+export interface CitizenProfile {
+  mobileNumber: string;
+  isMobileVerified: boolean;
+  isAadhaarVerified: boolean;
+  verifiedAadhaar?: string;
+  primaryCitizen: CitizenFormData;
+  familyMembers: FamilyMember[];
+  registeredAt: string;
+  lastLoginAt: string;
+}
+
+export interface UidaiEkycResult {
+  aadhaarNumber: string;
+  fullName: string;
+  fullNameHi: string;
+  fatherHusbandName: string;
+  fatherHusbandNameHi: string;
+  dob: string;
+  gender: 'Male' | 'Female' | 'Transgender';
+  addressLine: string;
+  addressLineHi: string;
+  state: string;
+  stateHi: string;
+  district: string;
+  districtHi: string;
+  tehsil: string;
+  tehsilHi: string;
+  postOffice: string;
+  postOfficeHi: string;
+  policeStation: string;
+  policeStationHi: string;
+  villageWard: string;
+  villageWardHi: string;
+  pinCode: string;
+  photoUrl?: string;
+  verifiedTimestamp: number;
 }
 
 export interface CompressionOptions {

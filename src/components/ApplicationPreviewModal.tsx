@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { CitizenFormData, Language } from '../types';
 import { GOVT_SERVICES } from '../data/uttarakhandData';
 import {
@@ -90,11 +90,33 @@ export const ApplicationPreviewModal: React.FC<ApplicationPreviewModalProps> = (
     window.print();
   };
 
+  // Instant Escape key close listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[95vh] cursor-default"
+      >
         {/* Header Controls */}
         <div className="bg-[#0a5c44] text-white p-4 flex items-center justify-between no-print">
           <div className="flex items-center gap-2">
@@ -108,6 +130,7 @@ export const ApplicationPreviewModal: React.FC<ApplicationPreviewModalProps> = (
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
             >
@@ -115,6 +138,7 @@ export const ApplicationPreviewModal: React.FC<ApplicationPreviewModalProps> = (
               <span className="hidden sm:inline">{isHi ? 'प्रिंट करें' : 'Print'}</span>
             </button>
             <button
+              type="button"
               onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold rounded-lg text-xs shadow-sm transition-colors cursor-pointer"
@@ -123,7 +147,12 @@ export const ApplicationPreviewModal: React.FC<ApplicationPreviewModalProps> = (
               <span>{isGeneratingPdf ? (isHi ? 'PDF बन रहा है...' : 'Generating...') : isHi ? 'PDF डाउनलोड करें' : 'Download PDF'}</span>
             </button>
             <button
-              onClick={onClose}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
               className="p-1 rounded-full text-white/80 hover:text-white hover:bg-white/10 ml-2 cursor-pointer"
             >
               <X size={20} />
@@ -456,6 +485,19 @@ export const ApplicationPreviewModal: React.FC<ApplicationPreviewModalProps> = (
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Citizen Self Declaration in Official Preview */}
+            <div className="mb-6 p-3 bg-slate-50 border border-slate-300 rounded text-xs">
+              <div className="font-bold text-slate-900 mb-1 flex items-center justify-between">
+                <span>स्व-घोषणा (Citizen Self Declaration):</span>
+                <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">
+                  ✓ डिजिटल रूप से स्वीकृत (Digitally Accepted)
+                </span>
+              </div>
+              <p className="text-slate-700 leading-relaxed text-[11px]">
+                "मैं प्रमाणित करता/करती हूँ कि आवेदन में दी गई समस्त जानकारी पूर्णतः सत्य एवं सही है। यदि कोई भी विवरण असत्य अथवा भ्रामक पाया गया तो मेरा आवेदन बिना किसी पूर्व सूचना के निरस्त किया जा सकता है।"
+              </p>
             </div>
 
             {/* Footer Signatures */}

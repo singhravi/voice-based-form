@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import {
   CitizenFormData,
   ExtractedDocData,
-  Language
+  Language,
+  CitizenProfile,
+  FamilyMember,
+  UidaiEkycResult
 } from './types';
 import { Header } from './components/Header';
 import { ServiceSelector } from './components/ServiceSelector';
@@ -12,6 +15,11 @@ import { PhotoCaptureModal } from './components/PhotoCaptureModal';
 import { VoiceFloatingAssistant } from './components/VoiceFloatingAssistant';
 import { GuidedVoiceModal } from './components/GuidedVoiceModal';
 import { ApplicationPreviewModal } from './components/ApplicationPreviewModal';
+import { PrivacyNoticeModal } from './components/PrivacyNoticeModal';
+import { MobileAuthModal } from './components/MobileAuthModal';
+import { UidaiVerificationModal } from './components/UidaiVerificationModal';
+import { FamilyMemberModal } from './components/FamilyMemberModal';
+import { CitizenApplicantSwitcher } from './components/CitizenApplicantSwitcher';
 import { AccessibilityToolbar } from './components/AccessibilityToolbar';
 import {
   CheckCircle,
@@ -26,17 +34,22 @@ import {
 import { parseUttarakhandName, parseBilingualAddress } from './utils/uttarakhandPhonetics';
 import { UTTARAKHAND_DISTRICTS } from './data/uttarakhandData';
 import { lookupPincodeSync } from './utils/pincodeLookup';
+import {
+  saveCitizenProfile,
+  addOrUpdateFamilyMember,
+  setActiveSessionMobile
+} from './utils/citizenStorage';
 
 const INITIAL_FORM_DATA: CitizenFormData = {
   serviceType: 'domicile',
   applicationNumber: `UK-EDIST-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`,
   fullName: '',
   fullNameHi: '',
-  gender: 'Male',
+  gender: '',
   dob: '',
-  maritalStatus: 'Unmarried',
-  religion: 'Hindu',
-  casteCategory: 'General',
+  maritalStatus: '',
+  religion: '',
+  casteCategory: '',
   fatherHusbandName: '',
   fatherHusbandNameHi: '',
   motherName: '',
@@ -47,25 +60,28 @@ const INITIAL_FORM_DATA: CitizenFormData = {
   aadhaarNumber: '',
   state: 'Uttarakhand',
   stateHi: 'उत्तराखंड',
-  district: 'Dehradun',
-  districtHi: 'देहरादून',
-  tehsil: 'Dehradun Sadar',
-  tehsilHi: 'देहरादून सदर',
-  postOffice: 'Dehradun G.P.O.',
-  postOfficeHi: 'देहरादून मुख्य डाकघर (GPO)',
-  policeStation: 'Kotwali Dehradun',
-  policeStationHi: 'कोतवाली देहरादून नगर',
+  district: '',
+  districtHi: '',
+  tehsil: '',
+  tehsilHi: '',
+  postOffice: '',
+  postOfficeHi: '',
+  policeStation: '',
+  policeStationHi: '',
   villageWard: '',
   villageWardHi: '',
   addressLine: '',
   addressLineHi: '',
-  pinCode: '248001',
-  isPermanentResident: true,
-  occupation: 'Self Employed / Business / स्वरोजगार',
-  annualIncome: '85000',
-  livingSinceYears: '20',
+  pinCode: '',
+  isPermanentResident: false,
+  occupation: '',
+  annualIncome: '',
+  livingSinceYears: '',
   documents: [],
-  fieldSources: {}
+  fieldSources: {},
+  isMobileVerified: false,
+  isAadhaarVerified: false,
+  appliedForMemberId: 'self'
 };
 
 export const App: React.FC = () => {
@@ -75,6 +91,14 @@ export const App: React.FC = () => {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isGuidedVoiceOpen, setIsGuidedVoiceOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [isMobileAuthModalOpen, setIsMobileAuthModalOpen] = useState(false);
+  const [mobileAuthMode, setMobileAuthMode] = useState<'verify_field' | 'login'>('verify_field');
+  const [isUidaiModalOpen, setIsUidaiModalOpen] = useState(false);
+  const [isFamilyModalOpen, setIsFamilyModalOpen] = useState(false);
+  const [editingFamilyMember, setEditingFamilyMember] = useState<FamilyMember | null>(null);
+  const [citizenProfile, setCitizenProfile] = useState<CitizenProfile | null>(null);
+  const [activeApplicantId, setActiveApplicantId] = useState<string>('self');
   const [notification, setNotification] = useState<{ title: string; message: string; type: 'success' | 'info' } | null>(null);
 
   const isHi = language === 'hi';
@@ -88,6 +112,24 @@ export const App: React.FC = () => {
     }, 4500);
   };
 
+  const handleReviewShortcut = () => {
+    if (!formData.isPermanentResident) {
+      showToast(
+        isHi ? 'स्व-घोषणा अनिवार्य है' : 'Self Declaration Required',
+        isHi
+          ? 'कृपया समीक्षा और सबमिट करने से पहले फॉर्म के अंत में स्व-घोषणा को स्वीकार करें।'
+          : 'Please accept the Citizen Self Declaration checkbox at the bottom before reviewing.',
+        'info'
+      );
+      const declEl = document.getElementById('declaration');
+      if (declEl) {
+        declEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+    setIsPreviewModalOpen(true);
+  };
+
   // Global Hands-Free Voice Commands Executor
   const handleExecuteVoiceCommand = (command: 'openCamera' | 'submitForm' | 'scrollTop' | 'resetForm' | 'openGuidedVoice') => {
     switch (command) {
@@ -95,13 +137,14 @@ export const App: React.FC = () => {
         setIsPhotoModalOpen(true);
         break;
       case 'submitForm':
-        setIsPreviewModalOpen(true);
+        handleReviewShortcut();
         break;
       case 'scrollTop':
         window.scrollTo({ top: 0, behavior: 'smooth' });
         break;
       case 'resetForm':
         setFormData(INITIAL_FORM_DATA);
+        setActiveApplicantId('self');
         showToast(
           isHi ? 'फॉर्म रीसेट किया गया' : 'Form Reset',
           isHi ? 'सभी फ़ील्ड्स को खाली कर दिया गया है' : 'All form inputs have been cleared'
@@ -111,6 +154,255 @@ export const App: React.FC = () => {
         setIsGuidedVoiceOpen(true);
         break;
     }
+  };
+
+  /**
+   * Handle Mobile OTP Verification & Login
+   */
+  const handleMobileVerified = (verifiedMob: string, existingProfile?: CitizenProfile | null) => {
+    const cleanMob = verifiedMob.replace(/\D/g, '').slice(-10);
+    setActiveSessionMobile(cleanMob);
+
+    if (existingProfile) {
+      setCitizenProfile(existingProfile);
+      setActiveApplicantId('self');
+      setFormData((prev) => ({
+        ...prev,
+        ...existingProfile.primaryCitizen,
+        mobileNumber: cleanMob,
+        isMobileVerified: true,
+        serviceType: prev.serviceType,
+        applicationNumber: prev.applicationNumber,
+        isPermanentResident: false
+      }));
+      showToast(
+        isHi ? 'लॉगिन सफल!' : 'Citizen Login Successful!',
+        isHi
+          ? `नमस्ते ${existingProfile.primaryCitizen.fullName}! आपका प्रोफ़ाइल व परिवार का डेटा लोड हो गया है।`
+          : `Welcome back ${existingProfile.primaryCitizen.fullName}! Your citizen profile & family records are loaded.`
+      );
+    } else {
+      // Create new citizen profile from current form
+      const newProfile: CitizenProfile = {
+        mobileNumber: cleanMob,
+        isMobileVerified: true,
+        isAadhaarVerified: formData.isAadhaarVerified || false,
+        verifiedAadhaar: formData.aadhaarNumber || undefined,
+        primaryCitizen: {
+          ...formData,
+          mobileNumber: cleanMob,
+          isMobileVerified: true
+        },
+        familyMembers: [],
+        registeredAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      };
+      saveCitizenProfile(newProfile);
+      setCitizenProfile(newProfile);
+      setFormData((prev) => ({
+        ...prev,
+        mobileNumber: cleanMob,
+        isMobileVerified: true,
+        fieldSources: { ...prev.fieldSources, mobileNumber: 'manual' }
+      }));
+      showToast(
+        isHi ? 'मोबाइल सत्यापित!' : 'Mobile Verified!',
+        isHi ? 'आपका मोबाइल नंबर OTP द्वारा सफलतापूर्वक सत्यापित कर लिया गया है।' : 'Mobile number verified successfully via OTP.'
+      );
+    }
+  };
+
+  /**
+   * Handle UIDAI Aadhaar Verification e-KYC
+   */
+  const handleUidaiVerified = (ekyc: UidaiEkycResult) => {
+    const updatedSources = { ...formData.fieldSources };
+    const updates: Partial<CitizenFormData> = {
+      aadhaarNumber: ekyc.aadhaarNumber,
+      isAadhaarVerified: true,
+      fullName: ekyc.fullName,
+      fullNameHi: ekyc.fullNameHi,
+      fatherHusbandName: ekyc.fatherHusbandName,
+      fatherHusbandNameHi: ekyc.fatherHusbandNameHi,
+      dob: ekyc.dob,
+      gender: ekyc.gender,
+      state: ekyc.state,
+      stateHi: ekyc.stateHi,
+      district: ekyc.district,
+      districtHi: ekyc.districtHi,
+      tehsil: ekyc.tehsil,
+      tehsilHi: ekyc.tehsilHi,
+      postOffice: ekyc.postOffice,
+      postOfficeHi: ekyc.postOfficeHi,
+      policeStation: ekyc.policeStation,
+      policeStationHi: ekyc.policeStationHi,
+      villageWard: ekyc.villageWard,
+      villageWardHi: ekyc.villageWardHi,
+      addressLine: ekyc.addressLine,
+      addressLineHi: ekyc.addressLineHi,
+      pinCode: ekyc.pinCode
+    };
+
+    [
+      'aadhaarNumber',
+      'fullName',
+      'fullNameHi',
+      'fatherHusbandName',
+      'fatherHusbandNameHi',
+      'dob',
+      'gender',
+      'addressLine',
+      'addressLineHi'
+    ].forEach((k) => {
+      updatedSources[k] = 'uidai';
+    });
+
+    setFormData((prev) => ({
+      ...prev,
+      ...updates,
+      fieldSources: updatedSources
+    }));
+
+    // Update active profile if present
+    if (citizenProfile && activeApplicantId === 'self') {
+      const updatedProf: CitizenProfile = {
+        ...citizenProfile,
+        isAadhaarVerified: true,
+        verifiedAadhaar: ekyc.aadhaarNumber,
+        primaryCitizen: {
+          ...citizenProfile.primaryCitizen,
+          ...updates,
+          isAadhaarVerified: true
+        }
+      };
+      saveCitizenProfile(updatedProf);
+      setCitizenProfile(updatedProf);
+    }
+
+    showToast(
+      isHi ? 'UIDAI e-KYC सत्यापित!' : 'UIDAI e-KYC Verified!',
+      isHi
+        ? 'आधार रिकॉर्ड से नाम, पता व जन्मतिथि फॉर्म में स्वतः दर्ज कर दिए गए हैं।'
+        : 'Demographics, Father Name, and Verified Address loaded directly from UIDAI register.'
+    );
+  };
+
+  /**
+   * Handle switching between Self & Family Member application
+   */
+  const handleSelectApplicant = (applicantId: string) => {
+    if (!citizenProfile) return;
+
+    if (applicantId === 'self') {
+      setActiveApplicantId('self');
+      setFormData((prev) => ({
+        ...prev,
+        ...citizenProfile.primaryCitizen,
+        appliedForMemberId: 'self',
+        serviceType: prev.serviceType,
+        applicationNumber: prev.applicationNumber,
+        isPermanentResident: false
+      }));
+      showToast(
+        isHi ? 'स्वयं (Self) चयनित' : 'Self Applicant Selected',
+        isHi ? 'स्वयं का सत्यापित विवरण फॉर्म में पुनः लोड किया गया।' : 'Switched to primary citizen application details.'
+      );
+    } else {
+      const member = citizenProfile.familyMembers.find((m) => m.id === applicantId);
+      if (member) {
+        setActiveApplicantId(member.id);
+        setFormData((prev) => {
+          const updatedSources = { ...prev.fieldSources };
+          ['fullName', 'fullNameHi', 'dob', 'gender', 'aadhaarNumber', 'mobileNumber'].forEach((k) => {
+            updatedSources[k] = 'family_profile';
+          });
+
+          return {
+            ...prev,
+            appliedForMemberId: member.id,
+            fullName: member.fullName,
+            fullNameHi: member.fullNameHi,
+            dob: member.dob || '',
+            gender: member.gender,
+            aadhaarNumber: member.aadhaarNumber || '',
+            isAadhaarVerified: member.isAadhaarVerified || false,
+            mobileNumber: member.mobileNumber || prev.mobileNumber,
+            isMobileVerified: member.isMobileVerified || true,
+            casteCategory: member.casteCategory || prev.casteCategory,
+            occupation: member.occupation || 'Student / छात्र',
+            annualIncome: member.annualIncome || '0',
+            // Inherit family household address
+            state: citizenProfile.primaryCitizen.state,
+            stateHi: citizenProfile.primaryCitizen.stateHi,
+            district: citizenProfile.primaryCitizen.district,
+            districtHi: citizenProfile.primaryCitizen.districtHi,
+            tehsil: citizenProfile.primaryCitizen.tehsil,
+            tehsilHi: citizenProfile.primaryCitizen.tehsilHi,
+            postOffice: citizenProfile.primaryCitizen.postOffice,
+            postOfficeHi: citizenProfile.primaryCitizen.postOfficeHi,
+            policeStation: citizenProfile.primaryCitizen.policeStation,
+            policeStationHi: citizenProfile.primaryCitizen.policeStationHi,
+            villageWard: citizenProfile.primaryCitizen.villageWard,
+            villageWardHi: citizenProfile.primaryCitizen.villageWardHi,
+            addressLine: citizenProfile.primaryCitizen.addressLine,
+            addressLineHi: citizenProfile.primaryCitizen.addressLineHi,
+            pinCode: citizenProfile.primaryCitizen.pinCode,
+            isPermanentResident: false,
+            fieldSources: updatedSources
+          };
+        });
+
+        showToast(
+          isHi ? `परिवार सदस्य: ${member.fullName}` : `Family Member: ${member.fullName}`,
+          isHi
+            ? `${member.fullName} (${member.relation}) हेतु आवेदन लोड किया गया। परिवार का पता स्वतः सुरक्षित रखा गया है।`
+            : `Loaded application for ${member.fullName} (${member.relation}). Verified family residence inherited.`
+        );
+      }
+    }
+  };
+
+  /**
+   * Handle Adding or Updating Family Member
+   */
+  const handleSaveFamilyMember = (member: FamilyMember) => {
+    if (!citizenProfile) {
+      // If no profile yet, create one
+      const newProf: CitizenProfile = {
+        mobileNumber: formData.mobileNumber || '9876543210',
+        isMobileVerified: true,
+        isAadhaarVerified: formData.isAadhaarVerified || false,
+        primaryCitizen: { ...formData },
+        familyMembers: [member],
+        registeredAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      };
+      saveCitizenProfile(newProf);
+      setCitizenProfile(newProf);
+      setActiveSessionMobile(newProf.mobileNumber);
+    } else {
+      const updated = addOrUpdateFamilyMember(citizenProfile.mobileNumber, member);
+      if (updated) {
+        setCitizenProfile(updated);
+      }
+    }
+
+    // If adding newly created member, switch form to this member
+    handleSelectApplicant(member.id);
+  };
+
+  /**
+   * Logout Handler
+   */
+  const handleLogout = () => {
+    setActiveSessionMobile(null);
+    setCitizenProfile(null);
+    setActiveApplicantId('self');
+    setFormData(INITIAL_FORM_DATA);
+    showToast(
+      isHi ? 'लॉगआउट संपन्न' : 'Signed Out',
+      isHi ? 'सत्र समाप्त कर दिया गया है।' : 'You have been logged out safely.'
+    );
   };
 
   // Handle OCR Auto Fill
@@ -275,7 +567,7 @@ export const App: React.FC = () => {
   const handleSingleFieldUpdate = (
     key: keyof CitizenFormData,
     value: any,
-    source: 'manual' | 'ocr' | 'voice' | 'pincode' = 'manual'
+    source: 'manual' | 'ocr' | 'voice' | 'pincode' | 'uidai' | 'family_profile' = 'manual'
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -290,7 +582,7 @@ export const App: React.FC = () => {
   // Handle multiple updates
   const handleFormChange = (
     updated: Partial<CitizenFormData>,
-    source: 'manual' | 'ocr' | 'voice' | 'pincode' = 'manual'
+    source: 'manual' | 'ocr' | 'voice' | 'pincode' | 'uidai' | 'family_profile' = 'manual'
   ) => {
     const newSources = { ...formData.fieldSources };
     Object.keys(updated).forEach((k) => {
@@ -344,6 +636,13 @@ export const App: React.FC = () => {
         onLanguageChange={setLanguage}
         onToggleVoiceModal={() => setIsVoiceModalOpen(!isVoiceModalOpen)}
         isVoiceActive={isVoiceModalOpen}
+        onOpenPrivacyNotice={() => setIsPrivacyModalOpen(true)}
+        onOpenLoginModal={() => {
+          setMobileAuthMode('login');
+          setIsMobileAuthModalOpen(true);
+        }}
+        activeCitizenName={citizenProfile?.primaryCitizen.fullName || null}
+        onLogout={handleLogout}
       />
 
       {/* Hero Welcome Banner */}
@@ -440,7 +739,7 @@ export const App: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setIsPreviewModalOpen(true)}
+              onClick={handleReviewShortcut}
               className="btn-primary text-xs py-2 px-4 shadow-sm cursor-pointer"
             >
               <span>{isHi ? 'आवेदन पत्र देखें (Preview)' : 'Review Application'}</span>
@@ -448,6 +747,25 @@ export const App: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Citizen Profile & Family Member Applicant Switcher (if logged in) */}
+        {citizenProfile && (
+          <CitizenApplicantSwitcher
+            profile={citizenProfile}
+            activeApplicantId={activeApplicantId}
+            onSelectApplicant={handleSelectApplicant}
+            onOpenAddFamilyModal={() => {
+              setEditingFamilyMember(null);
+              setIsFamilyModalOpen(true);
+            }}
+            onOpenEditFamilyModal={(m) => {
+              setEditingFamilyMember(m);
+              setIsFamilyModalOpen(true);
+            }}
+            onLogout={handleLogout}
+            language={language}
+          />
+        )}
 
         {/* Step 1: Service Selector */}
         <ServiceSelector
@@ -471,6 +789,12 @@ export const App: React.FC = () => {
           onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
           onOpenGuidedVoice={() => setIsGuidedVoiceOpen(true)}
           onSubmitPreview={() => setIsPreviewModalOpen(true)}
+          onOpenPrivacyNotice={() => setIsPrivacyModalOpen(true)}
+          onOpenMobileAuth={() => {
+            setMobileAuthMode('verify_field');
+            setIsMobileAuthModalOpen(true);
+          }}
+          onOpenUidaiVerification={() => setIsUidaiModalOpen(true)}
           language={language}
         />
       </main>
@@ -506,6 +830,42 @@ export const App: React.FC = () => {
         isOpen={isPreviewModalOpen}
         onClose={() => setIsPreviewModalOpen(false)}
         formData={formData}
+        language={language}
+      />
+
+      {/* DPDP Act 2023 & DPDP Rules 2025 Statutory Privacy Notice Modal */}
+      <PrivacyNoticeModal
+        isOpen={isPrivacyModalOpen}
+        onClose={() => setIsPrivacyModalOpen(false)}
+        language={language}
+      />
+
+      {/* Mobile OTP Verification & Login Modal */}
+      <MobileAuthModal
+        isOpen={isMobileAuthModalOpen}
+        onClose={() => setIsMobileAuthModalOpen(false)}
+        mode={mobileAuthMode}
+        initialMobile={formData.mobileNumber}
+        language={language}
+        onVerified={handleMobileVerified}
+      />
+
+      {/* UIDAI Aadhaar Verification & e-KYC Modal */}
+      <UidaiVerificationModal
+        isOpen={isUidaiModalOpen}
+        onClose={() => setIsUidaiModalOpen(false)}
+        initialAadhaar={formData.aadhaarNumber}
+        applicantName={formData.fullName}
+        language={language}
+        onEkycVerified={handleUidaiVerified}
+      />
+
+      {/* Family Member Add/Edit Modal */}
+      <FamilyMemberModal
+        isOpen={isFamilyModalOpen}
+        onClose={() => setIsFamilyModalOpen(false)}
+        onSaveMember={handleSaveFamilyMember}
+        editingMember={editingFamilyMember}
         language={language}
       />
 

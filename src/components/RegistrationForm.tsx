@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   CitizenFormData,
   Language
@@ -24,6 +24,7 @@ import {
   Radio,
   ShieldCheck,
   AlertTriangle,
+  AlertCircle,
   Zap,
   Shield,
   Loader2,
@@ -43,10 +44,13 @@ import { ExtractedJsonModal } from './ExtractedJsonModal';
 
 interface RegistrationFormProps {
   formData: CitizenFormData;
-  onChange: (updated: Partial<CitizenFormData>, source?: 'manual' | 'ocr' | 'voice' | 'pincode') => void;
+  onChange: (updated: Partial<CitizenFormData>, source?: 'manual' | 'ocr' | 'voice' | 'pincode' | 'uidai' | 'family_profile') => void;
   onOpenPhotoModal: () => void;
   onOpenGuidedVoice: () => void;
   onSubmitPreview: () => void;
+  onOpenPrivacyNotice?: () => void;
+  onOpenMobileAuth?: () => void;
+  onOpenUidaiVerification?: () => void;
   language: Language;
 }
 
@@ -65,6 +69,9 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   onOpenPhotoModal,
   onOpenGuidedVoice,
   onSubmitPreview,
+  onOpenPrivacyNotice,
+  onOpenMobileAuth,
+  onOpenUidaiVerification,
   language
 }) => {
   const isHi = language === 'hi';
@@ -80,6 +87,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [availablePostOfficesList, setAvailablePostOfficesList] = useState<Array<{ en: string; hi: string }>>([]);
   const [showAadhaar, setShowAadhaar] = useState(false);
   const [isFormJsonModalOpen, setIsFormJsonModalOpen] = useState(false);
+  const [declarationError, setDeclarationError] = useState(false);
+  const declarationRef = useRef<HTMLDivElement>(null);
 
   // Find tehsils for selected district
   const selectedDistrictData = UTTARAKHAND_DISTRICTS.find(
@@ -89,6 +98,18 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
 
   const handleFieldChange = (key: keyof CitizenFormData, value: any) => {
     onChange({ [key]: value }, 'manual');
+  };
+
+  const handleReviewClick = () => {
+    if (!formData.isPermanentResident) {
+      setDeclarationError(true);
+      if (declarationRef.current) {
+        declarationRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+    setDeclarationError(false);
+    onSubmitPreview();
   };
 
   /**
@@ -236,8 +257,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             const parsedDob = parseSpokenDate(cleanValue);
             updates.dob = parsedDob || cleanValue;
           } else if (fieldKey === 'mobileNumber') {
-            const parsedMob = voiceAssistantService.parseSpokenNumbers(cleanValue);
-            updates.mobileNumber = parsedMob.length >= 10 ? parsedMob.slice(-10) : parsedMob || cleanValue;
+            const parsedMob = voiceAssistantService.cleanMobileNumber(cleanValue);
+            updates.mobileNumber = parsedMob || cleanValue;
           } else if (fieldKey === 'villageWard' || fieldKey === 'villageWardHi') {
             const addr = parseBilingualAddress(cleanValue);
             updates.villageWard = addr.english || cleanValue;
@@ -266,8 +287,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           onChange(updates, 'voice');
 
           const recordedVal = (updates[fieldKey] as string) || cleanValue;
-          const speechEcho = isHi 
-            ? `${displayLabel} सुना गया: ${recordedVal}।` 
+          const speechEcho = isHi
+            ? `${displayLabel} सुना गया: ${recordedVal}।`
             : `${displayLabel} heard as: ${recordedVal}.`;
           voiceAssistantService.speakFeedback(speechEcho, isHi ? 'hi' : 'en');
 
@@ -301,8 +322,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
       if (pendingConfirmation.fieldKey === 'dob') {
         finalVal = parseSpokenDate(valToUse) || valToUse;
       } else if (pendingConfirmation.fieldKey === 'mobileNumber') {
-        const p = voiceAssistantService.parseSpokenNumbers(valToUse);
-        finalVal = p.length >= 10 ? p.slice(-10) : p || valToUse;
+        const p = voiceAssistantService.cleanMobileNumber(valToUse);
+        finalVal = p || valToUse;
       }
       const updates: Partial<CitizenFormData> = { [pendingConfirmation.fieldKey]: finalVal };
       if (pendingConfirmation.fieldKey === 'fullName') {
@@ -357,11 +378,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
         <button
           type="button"
           onClick={() => handleReadFieldAloud(fieldKey as string)}
-          className={`p-1 rounded-md transition-colors cursor-pointer ${
-            isSpeaking
+          className={`p-1 rounded-md transition-colors cursor-pointer ${isSpeaking
               ? 'bg-amber-100 text-amber-800'
               : 'text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
-          }`}
+            }`}
           title={isHi ? 'विवरण सुनें (Read aloud)' : 'Read field aloud'}
         >
           <Volume2 size={15} className={isSpeaking ? 'animate-pulse' : ''} />
@@ -375,11 +395,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
             e.stopPropagation();
             handleInlineMicClick(fieldKey);
           }}
-          className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
-            isListening
+          className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${isListening
               ? 'bg-rose-600 text-white shadow-lg scale-110 ring-4 ring-rose-300 animate-pulse'
               : 'text-purple-700 hover:text-purple-900 hover:bg-purple-100 bg-purple-50 border border-purple-200'
-          }`}
+            }`}
           title={
             isHi
               ? 'बोलकर भरने हेतु क्लिक करें'
@@ -553,11 +572,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                     setEditingValue(choice);
                     handleAcceptVoice(choice);
                   }}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                    choice === editingValue
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${choice === editingValue
                       ? 'bg-emerald-500 text-slate-950 font-bold'
                       : 'bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15'
-                  }`}
+                    }`}
                 >
                   {choice}
                 </button>
@@ -661,11 +679,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 setVoiceMode('hinglish');
                 voiceAssistantService.setVoiceMode('hinglish');
               }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                voiceMode === 'hinglish'
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceMode === 'hinglish'
                   ? 'bg-amber-400 text-slate-950 shadow-md'
                   : 'text-purple-200 hover:text-white'
-              }`}
+                }`}
             >
               <span>🇮🇳 हिंग्लिश</span>
             </button>
@@ -675,11 +692,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 setVoiceMode('hindi');
                 voiceAssistantService.setVoiceMode('hindi');
               }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                voiceMode === 'hindi'
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceMode === 'hindi'
                   ? 'bg-amber-400 text-slate-950 shadow-md'
                   : 'text-purple-200 hover:text-white'
-              }`}
+                }`}
             >
               <span>हिन्दी</span>
             </button>
@@ -689,11 +705,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 setVoiceMode('english');
                 voiceAssistantService.setVoiceMode('english');
               }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                voiceMode === 'english'
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1 ${voiceMode === 'english'
                   ? 'bg-amber-400 text-slate-950 shadow-md'
                   : 'text-purple-200 hover:text-white'
-              }`}
+                }`}
             >
               <span>English</span>
             </button>
@@ -801,6 +816,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 onChange={(e) => handleFieldChange('gender', e.target.value)}
                 className={`w-full text-sm px-3.5 py-2.5 rounded-lg border outline-none font-semibold bg-white ${getFieldHighlightClass('gender')}`}
               >
+                <option value="">{isHi ? '-- लिंग चुनें --' : '-- Select Gender --'}</option>
                 <option value="Male">Male / पुरुष</option>
                 <option value="Female">Female / महिला</option>
                 <option value="Transgender">Transgender / तृतीय लिंग</option>
@@ -826,20 +842,36 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               />
             </div>
 
-            {/* Aadhaar Number with Privacy Masking and Show/Hide Button */}
+            {/* Aadhaar Number with Privacy Masking, Show/Hide and UIDAI Verification Button */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 flex-wrap">
                   <span>{isHi ? 'आधार संख्या (मास्क्ड) *' : 'Aadhaar Number (Masked) *'}</span>
                   {renderFieldSourceBadge('aadhaarNumber')}
-                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                    <ShieldCheck size={11} className="text-emerald-600" />
-                    UIDAI Masked
-                  </span>
+                  {formData.isAadhaarVerified ? (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                      <ShieldCheck size={12} className="text-emerald-700" />
+                      UIDAI Verified ✓
+                    </span>
+                  ) : onOpenUidaiVerification ? (
+                    <button
+                      type="button"
+                      onClick={onOpenUidaiVerification}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded border border-red-200 cursor-pointer transition-all shadow-2xs"
+                    >
+                      <ShieldCheck size={11} className="text-red-600" />
+                      <span>{isHi ? 'UIDAI सत्यापन (e-KYC)' : 'Verify with UIDAI'}</span>
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                      <ShieldCheck size={11} className="text-slate-500" />
+                      UIDAI Masked
+                    </span>
+                  )}
                 </label>
                 {renderInlineVoiceControls('aadhaarNumber')}
               </div>
-              
+
               <div className="relative flex items-center">
                 <input
                   type="text"
@@ -854,7 +886,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                   className={`w-full text-sm pl-3.5 pr-24 py-2.5 rounded-lg border outline-none font-mono font-bold tracking-wider ${getFieldHighlightClass('aadhaarNumber')}`}
                   required
                 />
-                
+
                 {/* Show / Hide Masking Toggle Button */}
                 {formData.aadhaarNumber && (
                   <button
@@ -887,13 +919,28 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               </p>
             </div>
 
-            {/* Mobile Number */}
+            {/* Mobile Number with OTP Verification */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 flex-wrap">
                   <Phone size={13} className="text-emerald-700" />
                   <span>{isHi ? 'मोबाइल नंबर (SMS हेतु) *' : 'Mobile Number (for SMS) *'}</span>
                   {renderFieldSourceBadge('mobileNumber')}
+                  {formData.isMobileVerified ? (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                      <CheckCircle2 size={11} className="text-emerald-700" />
+                      Verified ✓
+                    </span>
+                  ) : onOpenMobileAuth ? (
+                    <button
+                      type="button"
+                      onClick={onOpenMobileAuth}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 cursor-pointer transition-all shadow-2xs"
+                    >
+                      <Sparkles size={11} className="text-emerald-600" />
+                      <span>{isHi ? 'सत्यापित करें (OTP)' : 'Verify Mobile (OTP)'}</span>
+                    </button>
+                  ) : null}
                 </label>
                 {renderInlineVoiceControls('mobileNumber')}
               </div>
@@ -942,6 +989,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 onChange={(e) => handleFieldChange('casteCategory', e.target.value)}
                 className={`w-full text-sm px-3.5 py-2.5 rounded-lg border outline-none font-semibold bg-white ${getFieldHighlightClass('casteCategory')}`}
               >
+                <option value="">{isHi ? '-- सामाजिक वर्ग चुनें --' : '-- Select Category --'}</option>
                 <option value="General">General / सामान्य वर्ग</option>
                 <option value="OBC">OBC / अन्य पिछड़ा वर्ग</option>
                 <option value="SC">SC / अनुसूचित जाति</option>
@@ -965,6 +1013,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 onChange={(e) => handleFieldChange('maritalStatus', e.target.value)}
                 className={`w-full text-sm px-3.5 py-2.5 rounded-lg border outline-none bg-white ${getFieldHighlightClass('maritalStatus')}`}
               >
+                <option value="">{isHi ? '-- वैवाहिक स्थिति चुनें --' : '-- Select Marital Status --'}</option>
                 <option value="Unmarried">Unmarried / अविवाहित</option>
                 <option value="Married">Married / विवाहित</option>
                 <option value="Widowed">Widowed / विधवा अथवा विधुर</option>
@@ -1151,9 +1200,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                     onChange={(e) => handlePincodeChange(e.target.value)}
                     placeholder="248001"
                     maxLength={6}
-                    className={`w-full text-base px-3.5 py-2.5 rounded-xl border-2 outline-none font-mono font-black tracking-widest text-slate-900 bg-white shadow-xs ${
-                      pincodeLoading ? 'border-amber-400 bg-amber-50/40' : getFieldHighlightClass('pinCode')
-                    }`}
+                    className={`w-full text-base px-3.5 py-2.5 rounded-xl border-2 outline-none font-mono font-black tracking-widest text-slate-900 bg-white shadow-xs ${pincodeLoading ? 'border-amber-400 bg-amber-50/40' : getFieldHighlightClass('pinCode')
+                      }`}
                     required
                   />
                   {pincodeLoading && (
@@ -1570,6 +1618,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
                 onChange={(e) => handleFieldChange('occupation', e.target.value)}
                 className="w-full text-sm px-3.5 py-2.5 rounded-lg border border-slate-300 outline-none bg-white"
               >
+                <option value="">{isHi ? '-- व्यवसाय चुनें --' : '-- Select Occupation --'}</option>
                 {OCCUPATIONS_LIST.map((occ) => (
                   <option key={occ} value={occ}>
                     {occ}
@@ -1624,29 +1673,125 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
           </div>
         </div>
 
-        {/* Declaration & Submission Box */}
-        <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              id="declaration"
-              checked={formData.isPermanentResident}
-              onChange={(e) => handleFieldChange('isPermanentResident', e.target.checked)}
-              className="mt-1 w-4 h-4 accent-emerald-600 rounded cursor-pointer"
-            />
-            <label htmlFor="declaration" className="text-xs text-slate-700 cursor-pointer">
+        {/* DPDP Act 2023 & DPDP Rules 2025 Statutory Notice Card */}
+        <div className="bg-gradient-to-r from-emerald-50/90 via-teal-50/70 to-cyan-50/90 border border-emerald-300 rounded-xl p-4 sm:p-5 shadow-2xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <ShieldCheck size={18} className="text-amber-300" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                    DPDP Act 2023 & DPDP Rules 2025
+                  </span>
+                  <span className="text-[10px] text-teal-800 font-semibold bg-teal-100/70 px-2 py-0.5 rounded">
+                    Sec 5 Statutory Notice
+                  </span>
+                </div>
+                <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 mt-0.5">
+                  {isHi ? 'डिजिटल व्यक्तिगत डेटा संरक्षण एवं गोपनीयता सूचना' : 'Digital Personal Data Protection & Privacy Notice'}
+                </h4>
+              </div>
+            </div>
+            {onOpenPrivacyNotice && (
+              <button
+                type="button"
+                onClick={onOpenPrivacyNotice}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+              >
+                <Shield size={13} className="text-amber-300" />
+                <span>{isHi ? 'पूर्ण सूचना व नागरिक अधिकार देखें' : 'View Full Notice & Rights'}</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-[11px] text-slate-700 mt-2 bg-white/80 p-3 rounded-lg border border-emerald-200/70">
+            <div>
               <span className="font-bold text-slate-900 block mb-0.5">
-                {isHi ? 'स्व-घोषणा (Citizen Self Declaration):' : 'Citizen Self Declaration:'}
+                {isHi ? '🎯 विनिर्दिष्ट प्रयोजन (Purpose):' : '🎯 Specified Purpose:'}
               </span>
-              {isHi
-                ? 'मैं प्रमाणित करता/करती हूँ कि आवेदन में दी गई समस्त जानकारी पूर्णतः सत्य है। यदि कोई भी विवरण असत्य पाया गया तो मेरा आवेदन निरस्त किया जा सकता है।'
-                : 'I hereby declare that all information furnished above is true and correct to the best of my knowledge.'}
-            </label>
+              <span className="text-slate-600">
+                {isHi
+                  ? 'उत्तराखंड ई-डिस्ट्रिक्ट पोर्टल के माध्यम से नागरिक प्रमाण-पत्र जारी करना एवं वैधानिक सत्यापन।'
+                  : 'Verification of eligibility and issuance of official state certificates / public service delivery.'}
+              </span>
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 block mb-0.5">
+                {isHi ? '🛡️ डेटा संरक्षण अधिकारी (DPO):' : '🛡️ Grievance & DPO:'}
+              </span>
+              <span className="text-slate-600">
+                dpo-edistrict@uk.gov.in | ITDA, IT Park, Dehradun | Helpline: 1800-180-2525
+              </span>
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 block mb-0.5">
+                {isHi ? '⚖️ नागरिक अधिकार (Your Rights):' : '⚖️ Your Rights (Sec 11-14):'}
+              </span>
+              <span className="text-slate-600">
+                {isHi
+                  ? 'डेटा एक्सेस, संशोधन/अद्यतन, सहमति वापसी, एवं विलोपन का वैधानिक अधिकार।'
+                  : 'Right to Access, Correction, Erasure, Grievance Redressal, and Consent Withdrawal.'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Declaration & Submission Box */}
+        <div
+          ref={declarationRef}
+          className={`rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-200 ${
+            declarationError
+              ? 'bg-rose-50 border-2 border-rose-500 shadow-md shadow-rose-100 ring-2 ring-rose-200'
+              : 'bg-emerald-50/50 border border-emerald-200'
+          }`}
+        >
+          <div className="flex flex-col gap-1.5 flex-1">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="declaration"
+                checked={!!formData.isPermanentResident}
+                onChange={(e) => {
+                  handleFieldChange('isPermanentResident', e.target.checked);
+                  if (e.target.checked) {
+                    setDeclarationError(false);
+                  }
+                }}
+                className={`mt-1 w-4 h-4 rounded cursor-pointer ${
+                  declarationError ? 'accent-rose-600 ring-2 ring-rose-400' : 'accent-emerald-600'
+                }`}
+                required
+              />
+              <label htmlFor="declaration" className="text-xs text-slate-700 cursor-pointer select-none">
+                <span className="font-bold text-slate-900 block mb-0.5">
+                  {isHi ? 'स्व-घोषणा (Citizen Self Declaration) *' : 'Citizen Self Declaration *'}
+                  <span className={`ml-2 text-xs font-semibold ${declarationError ? 'text-rose-600' : 'text-slate-500'}`}>
+                    ({isHi ? 'अनिवार्य' : 'Mandatory'})
+                  </span>
+                </span>
+                {isHi
+                  ? 'मैं प्रमाणित करता/करती हूँ कि आवेदन में दी गई समस्त जानकारी पूर्णतः सत्य है। यदि कोई भी विवरण असत्य पाया गया तो मेरा आवेदन निरस्त किया जा सकता है।'
+                  : 'I hereby declare that all information furnished above is true and correct to the best of my knowledge.'}
+              </label>
+            </div>
+            {declarationError && (
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-700 mt-1 sm:ml-7 bg-rose-100/80 px-2.5 py-1 rounded-md border border-rose-300">
+                <AlertCircle size={14} className="shrink-0 text-rose-600" />
+                <span>
+                  {isHi
+                    ? 'कृपया आवेदन पूर्वावलोकन एवं सबमिट करने से पहले स्व-घोषणा (Self Declaration) को चेक करके स्वीकार करें।'
+                    : 'Please accept the Citizen Self Declaration checkbox before reviewing and submitting.'}
+                </span>
+              </div>
+            )}
           </div>
 
           <button
-            onClick={onSubmitPreview}
-            className="btn-primary w-full sm:w-auto px-6 py-3 text-sm shadow-md whitespace-nowrap cursor-pointer"
+            type="button"
+            onClick={handleReviewClick}
+            className="btn-primary w-full sm:w-auto px-6 py-3 text-sm shadow-md whitespace-nowrap cursor-pointer shrink-0"
           >
             <Eye size={16} />
             {isHi ? 'आवेदन पत्र पूर्वावलोकन एवं PDF' : 'Review & Generate Official Application'}

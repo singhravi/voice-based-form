@@ -1,19 +1,27 @@
 import React from 'react';
 import { Language } from '../types';
-import { Mic, Phone, Shield, Sparkles } from 'lucide-react';
+import { Mic, Phone, Shield, Sparkles, User, LogIn, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   language: Language;
   onLanguageChange: (lang: Language) => void;
   onToggleVoiceModal: () => void;
   isVoiceActive: boolean;
+  onOpenPrivacyNotice?: () => void;
+  onOpenLoginModal?: () => void;
+  activeCitizenName?: string | null;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   language,
   onLanguageChange,
   onToggleVoiceModal,
-  isVoiceActive
+  isVoiceActive,
+  onOpenPrivacyNotice,
+  onOpenLoginModal,
+  activeCitizenName,
+  onLogout
 }) => {
   const isHi = language === 'hi';
 
@@ -26,14 +34,24 @@ export const Header: React.FC<HeaderProps> = ({
           <span>उत्तराखंड शासन | Government of Uttarakhand</span>
           <span className="hidden md:inline text-emerald-200">| e-District 2.0 AI Portal</span>
         </div>
-        <div className="flex items-center gap-4 text-emerald-100">
+        <div className="flex items-center gap-2 sm:gap-4 text-emerald-100">
+          {onOpenPrivacyNotice && (
+            <button
+              onClick={onOpenPrivacyNotice}
+              className="flex items-center gap-1 bg-emerald-900/90 hover:bg-emerald-800 border border-emerald-500/40 text-amber-300 hover:text-amber-200 px-2 py-0.5 rounded text-[11px] font-semibold transition-all cursor-pointer"
+              title="DPDP Act 2023 & DPDP Rules 2025 Privacy Notice"
+            >
+              <Shield size={12} />
+              <span>DPDP 2023/2025 Notice</span>
+            </button>
+          )}
           <div className="hidden sm:flex items-center gap-1.5 hover:text-white">
             <Phone size={13} />
-            <span>Toll-Free Helpline: 1800-180-2525 / 1905</span>
+            <span>Toll-Free: 1800-180-2525 / 1905</span>
           </div>
-          <div className="flex items-center gap-1 bg-[#06402f] px-2 py-0.5 rounded text-amber-300 font-semibold">
+          <div className="hidden xs:flex items-center gap-1 bg-[#06402f] px-2 py-0.5 rounded text-amber-300 font-semibold">
             <Shield size={12} />
-            <span>Govt. Verified Portal</span>
+            <span>Govt. Verified</span>
           </div>
         </div>
       </div>
@@ -75,6 +93,38 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Citizen Login / Profile Button */}
+          {activeCitizenName ? (
+            <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-300 rounded-lg p-1 text-xs">
+              <div className="flex items-center gap-1.5 px-2 py-1 text-emerald-900 font-bold max-w-[140px] sm:max-w-[180px] truncate">
+                <User size={14} className="text-emerald-700 shrink-0" />
+                <span className="truncate">{activeCitizenName}</span>
+              </div>
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="p-1 text-slate-500 hover:text-rose-600 rounded transition-colors"
+                  title={isHi ? 'लॉगआउट करें' : 'Logout'}
+                >
+                  <LogOut size={13} />
+                </button>
+              )}
+            </div>
+          ) : onOpenLoginModal ? (
+            <button
+              type="button"
+              onClick={onOpenLoginModal}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition-all cursor-pointer"
+            >
+              <LogIn size={15} />
+              <span className="hidden sm:inline">
+                {isHi ? 'नागरिक लॉगिन' : 'Citizen Login'}
+              </span>
+              <span className="sm:hidden">Login</span>
+            </button>
+          ) : null}
+
           {/* Voice Assistant Toggle */}
           <button
             onClick={onToggleVoiceModal}

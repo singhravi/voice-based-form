@@ -3,6 +3,119 @@
  * Provides authentic phonetic transliteration, fuzzy dictionary matching, and accurate Devanagari conversion.
  */
 
+// Indian & Uttarakhand Titles and Honorifics Dictionary
+export const INDIAN_TITLES_DICTIONARY: Record<string, { en: string; hi: string }> = {
+  // Shri / Mr.
+  'mr': { en: 'Mr.', hi: 'श्री' },
+  'mr.': { en: 'Mr.', hi: 'श्री' },
+  'mister': { en: 'Mr.', hi: 'श्री' },
+  'shri': { en: 'Shri', hi: 'श्री' },
+  'shri.': { en: 'Shri', hi: 'श्री' },
+  'shree': { en: 'Shri', hi: 'श्री' },
+  'shree.': { en: 'Shri', hi: 'श्री' },
+  'sri': { en: 'Sri', hi: 'श्री' },
+  'sri.': { en: 'Sri', hi: 'श्री' },
+  'shreeman': { en: 'Shri', hi: 'श्री' },
+  'श्री': { en: 'Shri', hi: 'श्री' },
+  'श्रीमान': { en: 'Shri', hi: 'श्री' },
+  'श्रीयुत': { en: 'Shri', hi: 'श्री' },
+
+  // Smt. / Mrs.
+  'mrs': { en: 'Mrs.', hi: 'श्रीमती' },
+  'mrs.': { en: 'Mrs.', hi: 'श्रीमती' },
+  'smt': { en: 'Smt.', hi: 'श्रीमती' },
+  'smt.': { en: 'Smt.', hi: 'श्रीमती' },
+  'shrimati': { en: 'Shrimati', hi: 'श्रीमती' },
+  'shreemati': { en: 'Shrimati', hi: 'श्रीमती' },
+  'srimati': { en: 'Srimati', hi: 'श्रीमती' },
+  'श्रीमती': { en: 'Smt.', hi: 'श्रीमती' },
+  'श्रीमति': { en: 'Smt.', hi: 'श्रीमती' },
+
+  // Kumari / Miss / Ms.
+  'ms': { en: 'Ms.', hi: 'सुश्री' },
+  'ms.': { en: 'Ms.', hi: 'सुश्री' },
+  'miss': { en: 'Miss', hi: 'कुमारी' },
+  'miss.': { en: 'Miss', hi: 'कुमारी' },
+  'km': { en: 'Km.', hi: 'कु.' },
+  'km.': { en: 'Km.', hi: 'कु.' },
+  'kumari': { en: 'Kumari', hi: 'कुमारी' },
+  'सुश्री': { en: 'Ms.', hi: 'सुश्री' },
+  'कुमारी': { en: 'Kumari', hi: 'कुमारी' },
+  'कु.': { en: 'Km.', hi: 'कु.' },
+  'कु': { en: 'Km.', hi: 'कु.' },
+
+  // Dr. / Doctor
+  'dr': { en: 'Dr.', hi: 'डॉ.' },
+  'dr.': { en: 'Dr.', hi: 'डॉ.' },
+  'doctor': { en: 'Dr.', hi: 'डॉ.' },
+  'डॉ': { en: 'Dr.', hi: 'डॉ.' },
+  'डॉ.': { en: 'Dr.', hi: 'डॉ.' },
+  'डा': { en: 'Dr.', hi: 'डॉ.' },
+  'डा.': { en: 'Dr.', hi: 'डॉ.' },
+  'डाक्टर': { en: 'Dr.', hi: 'डॉ.' },
+  'डॉक्टर': { en: 'Dr.', hi: 'डॉ.' },
+
+  // Late / Swargiya
+  'late': { en: 'Late', hi: 'स्व.' },
+  'late.': { en: 'Late', hi: 'स्व.' },
+  'swargiya': { en: 'Late', hi: 'स्वर्गीय' },
+  'sw': { en: 'Late', hi: 'स्व.' },
+  'sw.': { en: 'Late', hi: 'स्व.' },
+  'स्व': { en: 'Late', hi: 'स्व.' },
+  'स्व.': { en: 'Late', hi: 'स्व.' },
+  'स्वर्गीय': { en: 'Late', hi: 'स्वर्गीय' },
+  'स्वर्गवासी': { en: 'Late', hi: 'स्वर्गवासी' },
+
+  // Prof.
+  'prof': { en: 'Prof.', hi: 'प्रो.' },
+  'prof.': { en: 'Prof.', hi: 'प्रो.' },
+  'professor': { en: 'Prof.', hi: 'प्रो.' },
+  'प्रो': { en: 'Prof.', hi: 'प्रो.' },
+  'प्रो.': { en: 'Prof.', hi: 'प्रो.' },
+  'प्रोफेसर': { en: 'Prof.', hi: 'प्रो.' },
+
+  // Er. / Engineer
+  'er': { en: 'Er.', hi: 'इंजी.' },
+  'er.': { en: 'Er.', hi: 'इंजी.' },
+  'engineer': { en: 'Er.', hi: 'इंजीनियर' },
+  'इंजी': { en: 'Er.', hi: 'इंजी.' },
+  'इंजी.': { en: 'Er.', hi: 'इंजी.' },
+  'इंजीनियर': { en: 'Er.', hi: 'इंजीनियर' },
+
+  // Pandit / Pt.
+  'pt': { en: 'Pt.', hi: 'पं.' },
+  'pt.': { en: 'Pt.', hi: 'पं.' },
+  'pandit': { en: 'Pandit', hi: 'पंडित' },
+  'पं': { en: 'Pt.', hi: 'पं.' },
+  'पं.': { en: 'Pt.', hi: 'पं.' },
+  'पंडित': { en: 'Pandit', hi: 'पंडित' },
+
+  // Chaudhary / Ch.
+  'ch': { en: 'Ch.', hi: 'चौ.' },
+  'ch.': { en: 'Ch.', hi: 'चौ.' },
+  'chaudhary': { en: 'Chaudhary', hi: 'चौधरी' },
+  'choudhary': { en: 'Chaudhary', hi: 'चौधरी' },
+  'चौ': { en: 'Ch.', hi: 'चौ.' },
+  'चौ.': { en: 'Ch.', hi: 'चौ.' },
+  'चौधरी': { en: 'Chaudhary', hi: 'चौधरी' },
+
+  // Advocate / Adv.
+  'adv': { en: 'Adv.', hi: 'अधिवक्ता' },
+  'adv.': { en: 'Adv.', hi: 'अधिवक्ता' },
+  'advocate': { en: 'Advocate', hi: 'अधिवक्ता' },
+  'अधिवक्ता': { en: 'Advocate', hi: 'अधिवक्ता' },
+
+  // Master / Baba / Swami / Sardar
+  'master': { en: 'Master', hi: 'मास्टर' },
+  'मास्टर': { en: 'Master', hi: 'मास्टर' },
+  'baba': { en: 'Baba', hi: 'बाबा' },
+  'बाबा': { en: 'Baba', hi: 'बाबा' },
+  'swami': { en: 'Swami', hi: 'स्वामी' },
+  'स्वामी': { en: 'Swami', hi: 'स्वामी' },
+  'sardar': { en: 'Sardar', hi: 'सरदार' },
+  'सरदार': { en: 'Sardar', hi: 'सरदार' }
+};
+
 // Common Surnames Dictionary
 export const UK_SURNAME_DICTIONARY: Record<string, { en: string; hi: string }> = {
   // Garhwali & Kumaoni Surnames
@@ -136,6 +249,35 @@ export const UK_SURNAME_DICTIONARY: Record<string, { en: string; hi: string }> =
   'गुप्ता': { en: 'Gupta', hi: 'गुप्ता' },
   'yadav': { en: 'Yadav', hi: 'यादव' },
   'यादव': { en: 'Yadav', hi: 'यादव' },
+  'mishra': { en: 'Mishra', hi: 'मिश्रा' },
+  'misra': { en: 'Mishra', hi: 'मिश्रा' },
+  'मिश्रा': { en: 'Mishra', hi: 'मिश्रा' },
+  'मिश्र': { en: 'Mishra', hi: 'मिश्रा' },
+  'tripathi': { en: 'Tripathi', hi: 'त्रिपाठी' },
+  'त्रिपाठी': { en: 'Tripathi', hi: 'त्रिपाठी' },
+  'shukla': { en: 'Shukla', hi: 'शुक्ला' },
+  'शुक्ला': { en: 'Shukla', hi: 'शुक्ला' },
+  'शुक्ल': { en: 'Shukla', hi: 'शुक्ला' },
+  'dwivedi': { en: 'Dwivedi', hi: 'द्विवेदी' },
+  'द्विवेदी': { en: 'Dwivedi', hi: 'द्विवेदी' },
+  'dubey': { en: 'Dubey', hi: 'दुबे' },
+  'दुबे': { en: 'Dubey', hi: 'दुबे' },
+  'chaubey': { en: 'Chaubey', hi: 'चौबे' },
+  'चौबे': { en: 'Chaubey', hi: 'चौबे' },
+  'trivedi': { en: 'Trivedi', hi: 'त्रिवेदी' },
+  'त्रिवेदी': { en: 'Trivedi', hi: 'त्रिवेदी' },
+  'chaturvedi': { en: 'Chaturvedi', hi: 'चतुर्वेदी' },
+  'चतुर्वेदी': { en: 'Chaturvedi', hi: 'चतुर्वेदी' },
+  'upadhyay': { en: 'Upadhyay', hi: 'उपाध्याय' },
+  'उपाध्याय': { en: 'Upadhyay', hi: 'उपाध्याय' },
+  'ojha': { en: 'Ojha', hi: 'ओझा' },
+  'ओझा': { en: 'Ojha', hi: 'ओझा' },
+  'jha': { en: 'Jha', hi: 'झा' },
+  'झा': { en: 'Jha', hi: 'झा' },
+  'thakur': { en: 'Thakur', hi: 'ठाकुर' },
+  'ठाकुर': { en: 'Thakur', hi: 'ठाकुर' },
+  'rajput': { en: 'Rajput', hi: 'राजपूत' },
+  'राजपूत': { en: 'Rajput', hi: 'राजपूत' },
   'saini': { en: 'Saini', hi: 'सैनी' },
   'सैनी': { en: 'Saini', hi: 'सैनी' },
   'kashyap': { en: 'Kashyap', hi: 'कश्यप' },
@@ -150,7 +292,52 @@ export const UK_SURNAME_DICTIONARY: Record<string, { en: string; hi: string }> =
   'bhikiasain': { en: 'Bhikiasain', hi: 'भिकियासैंण' },
   'भिकियासैंण': { en: 'Bhikiasain', hi: 'भिकियासैंण' },
   'shankar': { en: 'Shankar', hi: 'शंकर' },
-  'शंकर': { en: 'Shankar', hi: 'शंकर' }
+  'शंकर': { en: 'Shankar', hi: 'शंकर' },
+  'shyam': { en: 'Shyam', hi: 'श्याम' },
+  'श्याम': { en: 'Shyam', hi: 'श्याम' },
+  'radhey': { en: 'Radhey', hi: 'राधे' },
+  'राधे': { en: 'Radhey', hi: 'राधे' },
+  'radhe': { en: 'Radhey', hi: 'राधे' },
+  'agarwal': { en: 'Agarwal', hi: 'अग्रवाल' },
+  'agrawal': { en: 'Agrawal', hi: 'अग्रवाल' },
+  'अग्रवाल': { en: 'Agarwal', hi: 'अग्रवाल' },
+  'garg': { en: 'Garg', hi: 'गर्ग' },
+  'गर्ग': { en: 'Garg', hi: 'गर्ग' },
+  'bansal': { en: 'Bansal', hi: 'बंसल' },
+  'बंसल': { en: 'Bansal', hi: 'बंसल' },
+  'mittal': { en: 'Mittal', hi: 'मित्तल' },
+  'मित्तल': { en: 'Mittal', hi: 'मित्तल' },
+  'goyal': { en: 'Goyal', hi: 'गोयल' },
+  'गोयल': { en: 'Goyal', hi: 'गोयल' },
+  'jindal': { en: 'Jindal', hi: 'जिंदल' },
+  'जिंदल': { en: 'Jindal', hi: 'जिंदल' },
+  'prajapati': { en: 'Prajapati', hi: 'प्रजापति' },
+  'प्रजापति': { en: 'Prajapati', hi: 'प्रजापति' },
+  'pal': { en: 'Pal', hi: 'पाल' },
+  'पाल': { en: 'Pal', hi: 'पाल' },
+  'maurya': { en: 'Maurya', hi: 'मौर्या' },
+  'मौर्या': { en: 'Maurya', hi: 'मौर्या' },
+  'morya': { en: 'Maurya', hi: 'मौर्या' },
+  'patel': { en: 'Patel', hi: 'पटेल' },
+  'पटेल': { en: 'Patel', hi: 'पटेल' },
+  'koli': { en: 'Koli', hi: 'कोली' },
+  'कोली': { en: 'Koli', hi: 'कोली' },
+  'das': { en: 'Das', hi: 'दास' },
+  'दास': { en: 'Das', hi: 'दास' },
+  'dey': { en: 'Dey', hi: 'डे' },
+  'डे': { en: 'Dey', hi: 'डे' },
+  'kapoor': { en: 'Kapoor', hi: 'कपूर' },
+  'कपूर': { en: 'Kapoor', hi: 'कपूर' },
+  'khanna': { en: 'Khanna', hi: 'खन्ना' },
+  'खन्ना': { en: 'Khanna', hi: 'खन्ना' },
+  'malhotra': { en: 'Malhotra', hi: 'मल्होत्रा' },
+  'मल्होत्रा': { en: 'Malhotra', hi: 'मल्होत्रा' },
+  'chopra': { en: 'Chopra', hi: 'चोपड़ा' },
+  'चोपड़ा': { en: 'Chopra', hi: 'चोपड़ा' },
+  'bhatia': { en: 'Bhatia', hi: 'भाटिया' },
+  'भाटिया': { en: 'Bhatia', hi: 'भाटिया' },
+  'kohli': { en: 'Kohli', hi: 'कोहली' },
+  'कोहली': { en: 'Kohli', hi: 'कोहली' }
 };
 
 // Common First Names Dictionary
@@ -402,7 +589,16 @@ export function latinToDevanagari(text: string): string {
     const cleanLower = w.toLowerCase().replace(/[^a-z]/g, '');
     if (!cleanLower) return w;
 
-    // 1. Direct dictionary match
+    // 1. Check title dictionary
+    if (INDIAN_TITLES_DICTIONARY[cleanLower]) {
+      return INDIAN_TITLES_DICTIONARY[cleanLower].hi;
+    }
+    const cleanNoDot = cleanLower.replace(/\.+$/, '');
+    if (INDIAN_TITLES_DICTIONARY[cleanNoDot]) {
+      return INDIAN_TITLES_DICTIONARY[cleanNoDot].hi;
+    }
+
+    // 2. Direct dictionary match
     const dictMatch =
       fuzzyMatchWord(cleanLower, UK_FIRST_NAMES_DICTIONARY) ||
       fuzzyMatchWord(cleanLower, UK_SURNAME_DICTIONARY);
@@ -410,21 +606,59 @@ export function latinToDevanagari(text: string): string {
       return dictMatch.hi;
     }
 
-    // 2. Phonetic token parser
+    // 3. Advanced phonetic token parser
     let res = '';
     let i = 0;
     const len = cleanLower.length;
 
     while (i < len) {
+      const isStart = i === 0;
+
+      // 4-char sequences
+      const c4 = cleanLower.slice(i, i + 4);
+      if (c4 === 'shya') { res += 'श्या'; i += 4; continue; }
+      if (c4 === 'shwa' || c4 === 'shva') { res += 'श्वा'; i += 4; continue; }
+
       // 3-char sequences
       const c3 = cleanLower.slice(i, i + 3);
       if (c3 === 'ksh') { res += 'क्ष'; i += 3; continue; }
       if (c3 === 'chh') { res += 'छ'; i += 3; continue; }
-      if (c3 === 'jny' || c3 === 'gya') { res += 'ज्ञ'; i += 3; continue; }
+      if (c3 === 'jny' || c3 === 'gya') { res += 'ज्ञा'; i += 3; continue; }
+      if (c3 === 'shr') { res += 'श्र'; i += 3; continue; }
+      if (c3 === 'shy') { res += 'श्य'; i += 3; continue; }
+      if (c3 === 'shw' || c3 === 'shv') { res += 'श्व'; i += 3; continue; }
+      if (c3 === 'tri') { res += 'त्रि'; i += 3; continue; }
+      if (c3 === 'tra') { res += 'त्रा'; i += 3; continue; }
+      if (c3 === 'kri') { res += 'कृ'; i += 3; continue; }
+      if (c3 === 'pri') { res += 'प्रि'; i += 3; continue; }
+      if (c3 === 'pra') { res += 'प्रा'; i += 3; continue; }
+      if (c3 === 'bri') { res += 'बृ'; i += 3; continue; }
+      if (c3 === 'bra') { res += 'ब्रा'; i += 3; continue; }
+      if (c3 === 'dra') { res += 'द्रा'; i += 3; continue; }
+      if (c3 === 'dri') { res += 'द्रि'; i += 3; continue; }
+      if (c3 === 'swa' || c3 === 'sva') { res += 'स्वा'; i += 3; continue; }
+      if (c3 === 'dwa' || c3 === 'dva') { res += 'द्वा'; i += 3; continue; }
+      if (c3 === 'dwi' || c3 === 'dvi') { res += 'द्वि'; i += 3; continue; }
+      if (c3 === 'jyo') { res += 'ज्यो'; i += 3; continue; }
+      if (c3 === 'jya') { res += 'ज्या'; i += 3; continue; }
+      if (c3 === 'dhy') { res += 'ध्य'; i += 3; continue; }
+      if (c3 === 'thy') { res += 'थ्य'; i += 3; continue; }
+      if (c3 === 'khy') { res += 'ख्य'; i += 3; continue; }
+      if (c3 === 'ghy') { res += 'घ्य'; i += 3; continue; }
+      if (c3 === 'bhy') { res += 'भ्य'; i += 3; continue; }
+      if (c3 === 'mya') { res += 'म्या'; i += 3; continue; }
+      if (c3 === 'vya' || c3 === 'wya') { res += 'व्या'; i += 3; continue; }
+      if (c3 === 'nya') { res += 'न्या'; i += 3; continue; }
+      if (c3 === 'rya') { res += 'र्या'; i += 3; continue; }
+      if (c3 === 'tya') { res += 'त्या'; i += 3; continue; }
+      if (c3 === 'dya') { res += 'द्या'; i += 3; continue; }
+      if (c3 === 'pya') { res += 'प्या'; i += 3; continue; }
+      if (c3 === 'kya') { res += 'क्या'; i += 3; continue; }
+      if (c3 === 'gya') { res += 'ग्या'; i += 3; continue; }
 
       // 2-char sequences
       const c2 = cleanLower.slice(i, i + 2);
-      if (c2 === 'kh') { res += (i === 0 ? 'ख' : (isVowel(cleanLower[i - 1]) ? 'ख' : 'ख')); i += 2; continue; }
+      if (c2 === 'kh') { res += 'ख'; i += 2; continue; }
       if (c2 === 'gh') { res += 'घ'; i += 2; continue; }
       if (c2 === 'ch') { res += 'च'; i += 2; continue; }
       if (c2 === 'jh') { res += 'झ'; i += 2; continue; }
@@ -433,24 +667,39 @@ export function latinToDevanagari(text: string): string {
       if (c2 === 'ph') { res += 'फ'; i += 2; continue; }
       if (c2 === 'bh') { res += 'भ'; i += 2; continue; }
       if (c2 === 'sh') { res += 'श'; i += 2; continue; }
-      if (c2 === 'ee') { res += (i === 0 ? 'ई' : 'ी'); i += 2; continue; }
-      if (c2 === 'oo') { res += (i === 0 ? 'ऊ' : 'ू'); i += 2; continue; }
-      if (c2 === 'aa') { res += (i === 0 ? 'आ' : 'ा'); i += 2; continue; }
-      if (c2 === 'ai') { res += (i === 0 ? 'ऐ' : 'ै'); i += 2; continue; }
-      if (c2 === 'au') { res += (i === 0 ? 'औ' : 'ौ'); i += 2; continue; }
+      if (c2 === 'pr') { res += 'प्र'; i += 2; continue; }
       if (c2 === 'tr') { res += 'त्र'; i += 2; continue; }
+      if (c2 === 'kr') { res += 'क्र'; i += 2; continue; }
+      if (c2 === 'gr') { res += 'ग्र'; i += 2; continue; }
+      if (c2 === 'br') { res += 'ब्र'; i += 2; continue; }
+      if (c2 === 'dr') { res += 'द्र'; i += 2; continue; }
+      if (c2 === 'fr') { res += 'फ्र'; i += 2; continue; }
+      if (c2 === 'vr' || c2 === 'wr') { res += 'व्र'; i += 2; continue; }
+      if (c2 === 'sw' || c2 === 'sv') { res += 'स्व'; i += 2; continue; }
+      if (c2 === 'st') { res += 'स्त'; i += 2; continue; }
+      if (c2 === 'sp') { res += 'स्प'; i += 2; continue; }
+      if (c2 === 'sm') { res += 'स्म'; i += 2; continue; }
+      if (c2 === 'sn') { res += 'स्न'; i += 2; continue; }
+      if (c2 === 'sk' || c2 === 'sc') { res += 'स्क'; i += 2; continue; }
+      if (c2 === 'sl') { res += 'स्ल'; i += 2; continue; }
+      if (c2 === 'jy') { res += 'ज्य'; i += 2; continue; }
       if (c2 === 'gy') { res += 'ज्ञ'; i += 2; continue; }
+      if (c2 === 'ee') { res += (isStart ? 'ई' : 'ी'); i += 2; continue; }
+      if (c2 === 'oo') { res += (isStart ? 'ऊ' : 'ू'); i += 2; continue; }
+      if (c2 === 'aa') { res += (isStart ? 'आ' : 'ा'); i += 2; continue; }
+      if (c2 === 'ai') { res += (isStart ? 'ऐ' : 'ै'); i += 2; continue; }
+      if (c2 === 'au' || c2 === 'ou') { res += (isStart ? 'औ' : 'ौ'); i += 2; continue; }
+      if (c2 === 'ey') { res += (isStart ? 'ए' : 'े'); i += 2; continue; }
 
       // 1-char sequence
       const c1 = cleanLower[i];
-      const isFirst = i === 0;
 
       switch (c1) {
-        case 'a': res += isFirst ? 'अ' : 'ा'; break;
-        case 'i': res += isFirst ? 'इ' : 'ि'; break;
-        case 'u': res += isFirst ? 'उ' : 'ु'; break;
-        case 'e': res += isFirst ? 'ए' : 'े'; break;
-        case 'o': res += isFirst ? 'ओ' : 'ो'; break;
+        case 'a': res += isStart ? 'अ' : 'ा'; break;
+        case 'i': res += isStart ? 'इ' : 'ि'; break;
+        case 'u': res += isStart ? 'उ' : 'ु'; break;
+        case 'e': res += isStart ? 'ए' : 'े'; break;
+        case 'o': res += isStart ? 'ओ' : 'ो'; break;
         case 'k': res += 'क'; break;
         case 'g': res += 'ग'; break;
         case 'j': res += 'ज'; break;
@@ -483,10 +732,6 @@ export function latinToDevanagari(text: string): string {
   return convertedWords.join(' ');
 }
 
-function isVowel(char?: string): boolean {
-  return !!char && ['a', 'e', 'i', 'o', 'u'].includes(char.toLowerCase());
-}
-
 /**
  * Phonetically convert a Devanagari Hindi string to proper English
  */
@@ -509,7 +754,7 @@ export function devanagariToEnglish(hindiText: string): string {
   };
 
   const DEVANAGARI_MATRAS: Record<string, string> = {
-    'ा': 'a', 'ि': 'i', 'ी': 'ee', 'ु': 'u', 'ू': 'oo', 'ृ': 'ri',
+    'ा': 'a', 'ि': 'i', 'ी': 'i', 'ु': 'u', 'ू': 'u', 'ृ': 'ri',
     'े': 'e', 'ै': 'ai', 'ो': 'o', 'ौ': 'au', 'ं': 'n', 'ँ': 'n', 'ः': 'h'
   };
 
@@ -517,7 +762,16 @@ export function devanagariToEnglish(hindiText: string): string {
     const cleanWord = w.trim();
     if (!cleanWord) return '';
 
-    // Check dictionary
+    // Check title dictionary
+    if (INDIAN_TITLES_DICTIONARY[cleanWord]) {
+      return INDIAN_TITLES_DICTIONARY[cleanWord].en;
+    }
+    const cleanNoDot = cleanWord.replace(/\.+$/, '');
+    if (INDIAN_TITLES_DICTIONARY[cleanNoDot]) {
+      return INDIAN_TITLES_DICTIONARY[cleanNoDot].en;
+    }
+
+    // Check name and surname dictionaries
     const match =
       fuzzyMatchWord(cleanWord, UK_FIRST_NAMES_DICTIONARY) ||
       fuzzyMatchWord(cleanWord, UK_SURNAME_DICTIONARY);
@@ -556,7 +810,7 @@ export function devanagariToEnglish(hindiText: string): string {
 }
 
 /**
- * Process a spoken name transcript in pure Hindi or English.
+ * Process a spoken or typed name transcript in pure Hindi or English with Indian title support.
  * Guarantees that hindiName is 100% pure Devanagari Hindi and englishName is clean English.
  */
 export function parseUttarakhandName(rawTranscript: string): { englishName: string; hindiName: string } {
@@ -573,42 +827,91 @@ export function parseUttarakhandName(rawTranscript: string): { englishName: stri
   const isDevanagari = /[\u0900-\u097F]/.test(cleanSpoken);
 
   if (isDevanagari) {
-    // Spoken in Pure Devanagari Hindi
-    const hindiWords = cleanSpoken.split(/\s+/).map((w) => {
-      const match =
-        fuzzyMatchWord(w, UK_FIRST_NAMES_DICTIONARY) ||
-        fuzzyMatchWord(w, UK_SURNAME_DICTIONARY);
-      return match ? match.hi : w;
-    });
+    // Spoken or typed in Pure Devanagari Hindi
+    const rawTokens = cleanSpoken.split(/\s+/);
+    const hindiWords: string[] = [];
+    const englishWords: string[] = [];
 
-    const hindiName = hindiWords.join(' ');
-    const englishName = devanagariToEnglish(cleanSpoken);
-    return { englishName, hindiName };
+    for (const w of rawTokens) {
+      const cleanW = w.trim();
+      if (!cleanW) continue;
+
+      // 1. Check title dictionary
+      if (INDIAN_TITLES_DICTIONARY[cleanW]) {
+        hindiWords.push(INDIAN_TITLES_DICTIONARY[cleanW].hi);
+        englishWords.push(INDIAN_TITLES_DICTIONARY[cleanW].en);
+        continue;
+      }
+
+      const cleanNoDot = cleanW.replace(/\.+$/, '');
+      if (INDIAN_TITLES_DICTIONARY[cleanNoDot]) {
+        hindiWords.push(INDIAN_TITLES_DICTIONARY[cleanNoDot].hi);
+        englishWords.push(INDIAN_TITLES_DICTIONARY[cleanNoDot].en);
+        continue;
+      }
+
+      // 2. Check Name and Surname dictionaries
+      const match =
+        fuzzyMatchWord(cleanW, UK_FIRST_NAMES_DICTIONARY) ||
+        fuzzyMatchWord(cleanW, UK_SURNAME_DICTIONARY);
+
+      if (match) {
+        hindiWords.push(match.hi);
+        englishWords.push(match.en);
+      } else {
+        hindiWords.push(cleanW);
+        englishWords.push(devanagariToEnglish(cleanW));
+      }
+    }
+
+    return {
+      englishName: englishWords.join(' '),
+      hindiName: hindiWords.join(' ')
+    };
   } else {
-    // Spoken in English / Latin Script
-    const words = cleanSpoken.split(/\s+/);
+    // Spoken or typed in English / Latin Script
+    const rawTokens = cleanSpoken.split(/\s+/);
+    const englishWords: string[] = [];
+    const hindiWords: string[] = [];
 
-    const englishWords = words.map((w) => {
-      const lower = w.toLowerCase().replace(/[^a-z]/g, '');
+    for (const w of rawTokens) {
+      const cleanW = w.trim();
+      if (!cleanW) continue;
+      const lower = cleanW.toLowerCase();
+
+      // 1. Check title dictionary
+      if (INDIAN_TITLES_DICTIONARY[lower]) {
+        englishWords.push(INDIAN_TITLES_DICTIONARY[lower].en);
+        hindiWords.push(INDIAN_TITLES_DICTIONARY[lower].hi);
+        continue;
+      }
+
+      const lowerNoDot = lower.replace(/\.+$/, '');
+      if (INDIAN_TITLES_DICTIONARY[lowerNoDot]) {
+        englishWords.push(INDIAN_TITLES_DICTIONARY[lowerNoDot].en);
+        hindiWords.push(INDIAN_TITLES_DICTIONARY[lowerNoDot].hi);
+        continue;
+      }
+
+      // 2. Check Name and Surname dictionaries
+      const alphaOnly = lowerNoDot.replace(/[^a-z]/g, '');
       const match =
-        fuzzyMatchWord(lower, UK_FIRST_NAMES_DICTIONARY) ||
-        fuzzyMatchWord(lower, UK_SURNAME_DICTIONARY);
-      if (match) return match.en;
-      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-    });
+        fuzzyMatchWord(alphaOnly, UK_FIRST_NAMES_DICTIONARY) ||
+        fuzzyMatchWord(alphaOnly, UK_SURNAME_DICTIONARY);
 
-    const hindiWords = words.map((w) => {
-      const lower = w.toLowerCase().replace(/[^a-z]/g, '');
-      const match =
-        fuzzyMatchWord(lower, UK_FIRST_NAMES_DICTIONARY) ||
-        fuzzyMatchWord(lower, UK_SURNAME_DICTIONARY);
-      if (match) return match.hi;
-      return latinToDevanagari(lower);
-    });
+      if (match) {
+        englishWords.push(match.en);
+        hindiWords.push(match.hi);
+      } else {
+        englishWords.push(cleanW.charAt(0).toUpperCase() + cleanW.slice(1).toLowerCase());
+        hindiWords.push(latinToDevanagari(alphaOnly || cleanW));
+      }
+    }
 
-    const englishName = englishWords.join(' ');
-    const hindiName = hindiWords.join(' ');
-    return { englishName, hindiName };
+    return {
+      englishName: englishWords.join(' '),
+      hindiName: hindiWords.join(' ')
+    };
   }
 }
 
